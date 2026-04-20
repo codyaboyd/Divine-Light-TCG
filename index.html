@@ -25,6 +25,29 @@
         </div>
       </section>
 
+      <section id="netPanel" class="panel">
+        <h2>Online PvP (WebRTC)</h2>
+        <div class="netRow">
+          <label for="netMode">Mode</label>
+          <select id="netMode">
+            <option value="local">Local Hotseat</option>
+            <option value="host">Host Match</option>
+            <option value="guest">Join Match</option>
+          </select>
+          <button id="applyNetModeBtn">Apply Mode</button>
+          <strong>Status:</strong> <span id="netStatus">Local mode</span>
+        </div>
+        <div class="netRow">
+          <button id="createOfferBtn">Create Offer</button>
+          <button id="createAnswerBtn">Create Answer</button>
+          <button id="setRemoteBtn">Set Remote Description</button>
+        </div>
+        <label for="localSignal"><strong>Local Signal (share this):</strong></label>
+        <textarea id="localSignal" rows="5" readonly></textarea>
+        <label for="remoteSignal"><strong>Remote Signal (paste from opponent):</strong></label>
+        <textarea id="remoteSignal" rows="5" placeholder="Paste offer/answer JSON here"></textarea>
+      </section>
+
       <section class="boardGrid">
         <article class="playerPanel" id="player0Panel">
           <h2 id="player0Title"></h2>

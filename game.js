@@ -36,6 +36,14 @@ const game = {
   gameOver: false,
 };
 
+const net = {
+  mode: "local",
+  localPlayerIndex: null,
+  peer: null,
+  channel: null,
+  connected: false,
+};
+
 const ids = {
   currentPlayerName: document.getElementById("currentPlayerName"),
   environmentName: document.getElementById("environmentName"),
@@ -43,6 +51,14 @@ const ids = {
   drawBtn: document.getElementById("drawBtn"),
   endTurnBtn: document.getElementById("endTurnBtn"),
   resetBtn: document.getElementById("resetBtn"),
+  netMode: document.getElementById("netMode"),
+  applyNetModeBtn: document.getElementById("applyNetModeBtn"),
+  netStatus: document.getElementById("netStatus"),
+  createOfferBtn: document.getElementById("createOfferBtn"),
+  createAnswerBtn: document.getElementById("createAnswerBtn"),
+  setRemoteBtn: document.getElementById("setRemoteBtn"),
+  localSignal: document.getElementById("localSignal"),
+  remoteSignal: document.getElementById("remoteSignal"),
 };
 
 const uid = () => Math.random().toString(36).slice(2, 11);
@@ -57,6 +73,126 @@ function shuffle(arr) {
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
   return arr;
+}
+
+function isOnlineMode() {
+  return net.mode === "host" || net.mode === "guest";
+}
+
+function canLocalControlPlayer(playerIndex) {
+  if (!isOnlineMode()) return true;
+  return net.localPlayerIndex === playerIndex;
+}
+
+function canLocalTakeTurnActions() {
+  if (!isOnlineMode()) return true;
+  return net.connected && net.localPlayerIndex === game.activePlayer;
+}
+
+function setNetStatus(message, isWarn = false) {
+  ids.netStatus.textContent = message;
+  ids.netStatus.className = isWarn ? "warn" : "";
+}
+
+function syncSignalOutput() {
+  if (!net.peer || !net.peer.localDescription) return;
+  ids.localSignal.value = JSON.stringify(net.peer.localDescription);
+}
+
+function closeConnection() {
+  if (net.channel) {
+    net.channel.close();
+  }
+  if (net.peer) {
+    net.peer.close();
+  }
+  net.peer = null;
+  net.channel = null;
+  net.connected = false;
+}
+
+function serializeGame() {
+  return {
+    players: game.players,
+    turn: game.turn,
+    activePlayer: game.activePlayer,
+    selectedAttackerId: game.selectedAttackerId,
+    pendingSacrifice: game.pendingSacrifice
+      ? {
+          heroCardId: game.pendingSacrifice.heroCardId,
+          cost: game.pendingSacrifice.cost,
+          chosen: Array.from(game.pendingSacrifice.chosen),
+        }
+      : null,
+    environment: game.environment,
+    gameOver: game.gameOver,
+  };
+}
+
+function applySnapshot(snapshot) {
+  game.players = snapshot.players;
+  game.turn = snapshot.turn;
+  game.activePlayer = snapshot.activePlayer;
+  game.selectedAttackerId = snapshot.selectedAttackerId;
+  game.pendingSacrifice = snapshot.pendingSacrifice
+    ? {
+        heroCardId: snapshot.pendingSacrifice.heroCardId,
+        cost: snapshot.pendingSacrifice.cost,
+        chosen: new Set(snapshot.pendingSacrifice.chosen),
+      }
+    : null;
+  game.environment = snapshot.environment;
+  game.gameOver = snapshot.gameOver;
+}
+
+function broadcastState() {
+  if (net.mode !== "host" || !net.channel || net.channel.readyState !== "open") return;
+  net.channel.send(JSON.stringify({ type: "state", state: serializeGame() }));
+}
+
+function setupDataChannel(channel) {
+  net.channel = channel;
+  net.channel.onopen = () => {
+    net.connected = true;
+    setNetStatus("Connected");
+    setAction("Peer connected. Host controls Player 1, guest controls Player 2.");
+    if (net.mode === "host") {
+      broadcastState();
+    }
+    render();
+  };
+  net.channel.onclose = () => {
+    net.connected = false;
+    setNetStatus("Disconnected", true);
+    render();
+  };
+  net.channel.onmessage = (event) => {
+    const payload = JSON.parse(event.data);
+    if (payload.type === "intent" && net.mode === "host") {
+      processIntent(payload.intent, true);
+      broadcastState();
+    } else if (payload.type === "state" && net.mode === "guest") {
+      applySnapshot(payload.state);
+      render();
+    }
+  };
+}
+
+function ensurePeer() {
+  if (net.peer) return;
+  net.peer = new RTCPeerConnection({
+    iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+  });
+  net.peer.onicecandidate = (event) => {
+    if (!event.candidate) {
+      syncSignalOutput();
+    }
+  };
+  if (net.mode === "guest") {
+    net.peer.ondatachannel = (event) => {
+      setupDataChannel(event.channel);
+    };
+  }
 }
 
 function createDeck() {
@@ -389,8 +525,71 @@ function endTurn() {
   render();
 }
 
+function processIntent(intent, fromRemote = false) {
+  const current = getCurrentPlayer();
+  const opponent = getOpponent();
+  if (!intent || game.gameOver) return;
+
+  if (isOnlineMode()) {
+    const controller = fromRemote ? 1 : 0;
+    if (controller !== game.activePlayer) {
+      return;
+    }
+  }
+
+  if (intent.type === "play-card") {
+    const card = current.hand.find((c) => c.id === intent.cardId);
+    if (!card) return;
+    if (card.type === "hero") playHero(current, intent.cardId);
+    else if (card.type === "mystic") playMystic(current, intent.cardId);
+    else playEnvironment(current, intent.cardId);
+  } else if (intent.type === "confirm-sacrifice") {
+    confirmSacrifice(current);
+  } else if (intent.type === "toggle-sacrifice") {
+    toggleSacrificeSelection(intent.cardId);
+  } else if (intent.type === "select-attacker") {
+    game.selectedAttackerId = intent.cardId;
+    setAction("Attacker selected. Choose an enemy hero or direct attack.");
+    render();
+  } else if (intent.type === "target-enemy") {
+    attackHero(current, opponent, game.selectedAttackerId, intent.cardId);
+    game.selectedAttackerId = null;
+  } else if (intent.type === "target-player") {
+    attackPlayer(current, opponent, game.selectedAttackerId);
+    game.selectedAttackerId = null;
+  } else if (intent.type === "draw") {
+    drawCard(current);
+    render();
+  } else if (intent.type === "end-turn") {
+    endTurn();
+  } else if (intent.type === "reset") {
+    startGame();
+  }
+}
+
+function submitIntent(intent) {
+  if (!isOnlineMode()) {
+    processIntent(intent, false);
+    return;
+  }
+  if (!canLocalTakeTurnActions() && intent.type !== "reset") {
+    setAction("Not your turn.", true);
+    return;
+  }
+  if (net.mode === "host") {
+    processIntent(intent, false);
+    broadcastState();
+    return;
+  }
+  if (net.mode === "guest" && net.channel && net.channel.readyState === "open") {
+    net.channel.send(JSON.stringify({ type: "intent", intent }));
+  } else {
+    setAction("No host connection yet.", true);
+  }
+}
+
 function renderHandCard(card, owner, isCurrent) {
-  const canPlay = isCurrent && !game.gameOver;
+  const canPlay = isCurrent && canLocalTakeTurnActions() && canLocalControlPlayer(owner) && !game.gameOver;
   let extra = "";
   if (card.type === "hero") {
     extra = `Skulls: ${card.skull}<br/>ATK ${card.attack} / FORT ${card.fortitude}<br/>Faction: ${card.faction}`;
@@ -429,7 +628,7 @@ function renderBoardHero(hero, ownerIndex, isCurrent, enemyTargetable) {
     `<span>${hero.exhausted ? "Exhausted" : "Ready"}${hero.shielded ? " | Shielded" : ""}</span>`,
   ];
 
-  if (isCurrent && !game.gameOver) {
+  if (isCurrent && canLocalTakeTurnActions() && canLocalControlPlayer(ownerIndex) && !game.gameOver) {
     if (game.pendingSacrifice) {
       parts.push(`<button data-action="toggle-sacrifice" data-card-id="${hero.id}">Sacrifice</button>`);
     } else if (!hero.exhausted) {
@@ -437,7 +636,7 @@ function renderBoardHero(hero, ownerIndex, isCurrent, enemyTargetable) {
     }
   }
 
-  if (enemyTargetable && !game.gameOver) {
+  if (enemyTargetable && canLocalTakeTurnActions() && !game.gameOver) {
     parts.push(`<button data-action="target-enemy" data-card-id="${hero.id}">Target</button>`);
   }
 
@@ -457,6 +656,7 @@ function renderPlayer(index) {
 
   const isCurrent = index === game.activePlayer;
   const enemyTargetable = !isCurrent && game.selectedAttackerId !== null;
+  const canViewHand = !isOnlineMode() || canLocalControlPlayer(index);
 
   title.textContent = `${player.name}${isCurrent ? " (Active)" : ""}`;
   vitality.textContent = player.vitality;
@@ -467,9 +667,13 @@ function renderPlayer(index) {
 
   board.innerHTML =
     player.board.map((hero) => renderBoardHero(hero, index, isCurrent, enemyTargetable)).join("") +
-    (isCurrent && game.selectedAttackerId ? `<div class="card"><strong>Direct Attack</strong><button data-action="target-player" data-owner="${index}">Hit Enemy Vitality</button></div>` : "");
+    (isCurrent && canLocalTakeTurnActions() && canLocalControlPlayer(index) && game.selectedAttackerId
+      ? `<div class="card"><strong>Direct Attack</strong><button data-action="target-player" data-owner="${index}">Hit Enemy Vitality</button></div>`
+      : "");
 
-  hand.innerHTML = player.hand.map((card) => renderHandCard(card, index, isCurrent)).join("");
+  hand.innerHTML = canViewHand
+    ? player.hand.map((card) => renderHandCard(card, index, isCurrent)).join("")
+    : `<div class="card"><strong>Hidden Hand</strong><span class="faint">${player.hand.length} cards</span></div>`;
 }
 
 function render() {
@@ -480,6 +684,9 @@ function render() {
 
   renderPlayer(0);
   renderPlayer(1);
+
+  ids.drawBtn.disabled = !canLocalTakeTurnActions() || game.gameOver;
+  ids.endTurnBtn.disabled = !canLocalTakeTurnActions() || game.gameOver;
 }
 
 document.body.addEventListener("click", (event) => {
@@ -489,44 +696,89 @@ document.body.addEventListener("click", (event) => {
   const action = target.dataset.action;
   if (!action || game.gameOver) return;
 
-  const current = getCurrentPlayer();
-  const opponent = getOpponent();
-
   if (action === "play-card") {
-    const cardId = target.dataset.cardId;
-    const card = current.hand.find((c) => c.id === cardId);
-    if (!card) return;
-    if (card.type === "hero") {
-      playHero(current, cardId);
-    } else if (card.type === "mystic") {
-      playMystic(current, cardId);
-    } else {
-      playEnvironment(current, cardId);
-    }
+    submitIntent({ type: "play-card", cardId: target.dataset.cardId });
   } else if (action === "confirm-sacrifice") {
-    confirmSacrifice(current);
+    submitIntent({ type: "confirm-sacrifice" });
   } else if (action === "toggle-sacrifice") {
-    toggleSacrificeSelection(target.dataset.cardId);
+    submitIntent({ type: "toggle-sacrifice", cardId: target.dataset.cardId });
   } else if (action === "select-attacker") {
-    game.selectedAttackerId = target.dataset.cardId;
-    setAction("Attacker selected. Choose an enemy hero or direct attack.");
-    render();
+    submitIntent({ type: "select-attacker", cardId: target.dataset.cardId });
   } else if (action === "target-enemy") {
-    attackHero(current, opponent, game.selectedAttackerId, target.dataset.cardId);
-    game.selectedAttackerId = null;
+    submitIntent({ type: "target-enemy", cardId: target.dataset.cardId });
   } else if (action === "target-player") {
-    attackPlayer(current, opponent, game.selectedAttackerId);
-    game.selectedAttackerId = null;
+    submitIntent({ type: "target-player" });
   }
 });
 
 ids.drawBtn.addEventListener("click", () => {
-  if (game.gameOver) return;
-  drawCard(getCurrentPlayer());
+  submitIntent({ type: "draw" });
+});
+
+ids.endTurnBtn.addEventListener("click", () => submitIntent({ type: "end-turn" }));
+ids.resetBtn.addEventListener("click", () => submitIntent({ type: "reset" }));
+
+ids.applyNetModeBtn.addEventListener("click", () => {
+  closeConnection();
+  ids.localSignal.value = "";
+  ids.remoteSignal.value = "";
+  net.mode = ids.netMode.value;
+  net.localPlayerIndex = net.mode === "host" ? 0 : net.mode === "guest" ? 1 : null;
+  setNetStatus(
+    net.mode === "local"
+      ? "Local mode"
+      : net.mode === "host"
+        ? "Host mode (create offer)"
+        : "Guest mode (paste offer, then create answer)"
+  );
+  setAction(
+    net.mode === "local"
+      ? "Local hotseat enabled."
+      : net.mode === "host"
+        ? "Host mode enabled. Create an offer and share it."
+        : "Guest mode enabled. Paste host offer, create answer, and share it back."
+  );
   render();
 });
 
-ids.endTurnBtn.addEventListener("click", endTurn);
-ids.resetBtn.addEventListener("click", startGame);
+ids.createOfferBtn.addEventListener("click", async () => {
+  if (net.mode !== "host") {
+    setAction("Switch to Host mode before creating an offer.", true);
+    return;
+  }
+  ensurePeer();
+  setupDataChannel(net.peer.createDataChannel("pvp"));
+  const offer = await net.peer.createOffer();
+  await net.peer.setLocalDescription(offer);
+  setNetStatus("Offer created. Share local signal.");
+});
+
+ids.createAnswerBtn.addEventListener("click", async () => {
+  if (net.mode !== "guest") {
+    setAction("Switch to Guest mode before creating an answer.", true);
+    return;
+  }
+  ensurePeer();
+  const offerText = ids.remoteSignal.value.trim();
+  if (!offerText) {
+    setAction("Paste host offer into Remote Signal first.", true);
+    return;
+  }
+  await net.peer.setRemoteDescription(JSON.parse(offerText));
+  const answer = await net.peer.createAnswer();
+  await net.peer.setLocalDescription(answer);
+  setNetStatus("Answer created. Share local signal.");
+});
+
+ids.setRemoteBtn.addEventListener("click", async () => {
+  const text = ids.remoteSignal.value.trim();
+  if (!text) {
+    setAction("Remote signal is empty.", true);
+    return;
+  }
+  ensurePeer();
+  await net.peer.setRemoteDescription(JSON.parse(text));
+  setNetStatus("Remote description applied. Awaiting connection...");
+});
 
 startGame();

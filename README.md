@@ -1,6 +1,6 @@
 # Divine Light PvP Digital TCG
 
-A lightweight JavaScript PvP (hotseat) digital trading card battle game.
+A lightweight JavaScript digital trading card battle game with local hotseat and online WebRTC PvP.
 
 ## Features
 
@@ -20,9 +20,18 @@ A lightweight JavaScript PvP (hotseat) digital trading card battle game.
 - **Vitality and overflow damage**:
   - Players start with vitality.
   - Overkill damage to a hero spills over to player vitality.
+- **Online PvP over WebRTC**:
+  - Host/join modes with manual SDP exchange (copy/paste).
+  - Peer-to-peer sync using a data channel (host-authoritative game state).
+  - Opponent hand is hidden during online matches.
 
 ## Run
 
 Open `index.html` in any modern browser.
 
 No build step is required.
+
+For online play:
+1. Host chooses **Host Match**, then clicks **Create Offer** and shares the local signal blob.
+2. Guest chooses **Join Match**, pastes the host offer in **Remote Signal**, clicks **Create Answer**, and shares their local signal.
+3. Host pastes the guest answer into **Remote Signal** and clicks **Set Remote Description**.
