@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Divine Light PvP TCG</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Divine Light PvP Digital TCG</h1>
+      <p>Two-player hotseat battle with Hero, Mystic, and Environment cards.</p>
+    </header>
+
+    <main>
+      <section id="statusPanel" class="panel">
+        <div class="statusRow">
+          <strong>Current Turn:</strong> <span id="currentPlayerName"></span>
+        </div>
+        <div class="statusRow">
+          <strong>Environment:</strong> <span id="environmentName">None</span>
+        </div>
+        <div class="statusRow">
+          <strong>Action:</strong> <span id="actionMessage">Start by drawing and playing cards.</span>
+        </div>
+      </section>
+
+      <section class="boardGrid">
+        <article class="playerPanel" id="player0Panel">
+          <h2 id="player0Title"></h2>
+          <div class="metrics">
+            <span>Vitality: <strong id="player0Vitality"></strong></span>
+            <span>Deck: <strong id="player0Deck"></strong></span>
+            <span>Graveyard: <strong id="player0Graveyard"></strong></span>
+          </div>
+          <h3>Battlefield (max 5 heroes)</h3>
+          <div class="zone" id="player0Board"></div>
+          <h3>Hand</h3>
+          <div class="zone" id="player0Hand"></div>
+        </article>
+
+        <article class="playerPanel" id="player1Panel">
+          <h2 id="player1Title"></h2>
+          <div class="metrics">
+            <span>Vitality: <strong id="player1Vitality"></strong></span>
+            <span>Deck: <strong id="player1Deck"></strong></span>
+            <span>Graveyard: <strong id="player1Graveyard"></strong></span>
+          </div>
+          <h3>Battlefield (max 5 heroes)</h3>
+          <div class="zone" id="player1Board"></div>
+          <h3>Hand</h3>
+          <div class="zone" id="player1Hand"></div>
+        </article>
+      </section>
+
+      <section class="panel controls">
+        <button id="drawBtn">Draw Card</button>
+        <button id="endTurnBtn">End Turn</button>
+        <button id="resetBtn">New Game</button>
+      </section>
+    </main>
+
+    <script src="game.js"></script>
+  </body>
+</html>
