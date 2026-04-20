@@ -149,6 +149,39 @@ p {
   border-color: var(--accent);
 }
 
+#netPanel textarea,
+#netPanel select,
+#netPanel button {
+  width: 100%;
+}
+
+.netRow {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto 1fr;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.6rem;
+}
+
+.netRow + .netRow {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+#netPanel textarea,
+#netPanel select,
+#netPanel button {
+  border: 1px solid #4f5a75;
+  background: #2d3345;
+  color: var(--ink);
+  border-radius: 8px;
+  padding: 0.42rem 0.55rem;
+}
+
+#netPanel textarea {
+  resize: vertical;
+  margin-bottom: 0.5rem;
+}
+
 .win {
   color: var(--good);
   font-weight: 600;
@@ -160,6 +193,11 @@ p {
 
 @media (max-width: 920px) {
   .boardGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .netRow,
+  .netRow + .netRow {
     grid-template-columns: 1fr;
   }
 }
