@@ -19,6 +19,7 @@ const net = {
 };
 
 const ids = {
+  turnBanner: document.getElementById("turnBanner"),
   launchGameBtn: document.getElementById("launchGameBtn"),
   menuPulseBtn: document.getElementById("menuPulseBtn"),
   currentPlayerName: document.getElementById("currentPlayerName"),
@@ -34,6 +35,16 @@ const ids = {
   setRemoteBtn: document.getElementById("setRemoteBtn"),
   localSignal: document.getElementById("localSignal"),
   remoteSignal: document.getElementById("remoteSignal"),
+};
+
+const fx = {
+  knownCardIds: new Set(),
+  prevDamage: new Map(),
+  prevExhausted: new Map(),
+  prevBoardCards: new Set(),
+  activeClass: null,
+  timer: null,
+  bannerTimer: null,
 };
 
 const uid = () => Math.random().toString(36).slice(2, 11);
@@ -211,6 +222,54 @@ function createPlayer(name) {
 function setAction(message, isWarn = false) {
   ids.actionMessage.textContent = message;
   ids.actionMessage.className = isWarn ? "warn" : "";
+  triggerCinematicByMessage(message, isWarn);
+}
+
+function setTurnBanner(text) {
+  ids.turnBanner.textContent = text;
+  ids.turnBanner.classList.add("active");
+  if (fx.bannerTimer) window.clearTimeout(fx.bannerTimer);
+  fx.bannerTimer = window.setTimeout(() => ids.turnBanner.classList.remove("active"), 1200);
+}
+
+function triggerCinematic(effect) {
+  if (fx.activeClass) {
+    document.body.classList.remove(fx.activeClass);
+  }
+  fx.activeClass = `fx-${effect}`;
+  document.body.classList.add(fx.activeClass);
+  if (fx.timer) window.clearTimeout(fx.timer);
+  fx.timer = window.setTimeout(() => {
+    if (fx.activeClass) document.body.classList.remove(fx.activeClass);
+    fx.activeClass = null;
+  }, effect === "win" ? 950 : 620);
+}
+
+function triggerCinematicByMessage(message, isWarn) {
+  const msg = String(message || "").toLowerCase();
+  if (isWarn) {
+    triggerCinematic("warn");
+    return;
+  }
+  if (msg.includes("wins the duel")) {
+    triggerCinematic("win");
+    return;
+  }
+  if (msg.includes("summoned")) {
+    triggerCinematic("summon");
+    return;
+  }
+  if (msg.includes("attacked") || msg.includes("retaliated") || msg.includes("dealt")) {
+    triggerCinematic("attack");
+    return;
+  }
+  if (msg.includes("turn")) {
+    triggerCinematic("turn");
+    return;
+  }
+  if (msg.includes("boost") || msg.includes("shield") || msg.includes("revived") || msg.includes("environment")) {
+    triggerCinematic("mystic");
+  }
 }
 
 function calculateStats(hero, ownerIndex = null) {
@@ -343,6 +402,7 @@ function startGame() {
 
   resetExhaustion(game.players[0]);
   setAction("New duel started. You may play up to 1 hero and 1 non-hero card (Mystic or Environment) each turn. 1-2 skull heroes are free, 3-5 skull heroes require sacrifices unless bypassed by Mystic cards (3-4 skull only). Direct attacks usually require a clear enemy board unless the attacker has Piercing. Hero combat includes retaliation + overflow, and you draw automatically at the beginning of each turn.");
+  setTurnBanner("Player 1 Turn");
   render();
 }
 
@@ -858,6 +918,7 @@ function endTurn() {
   drawCard(current);
 
   setAction(`${current.name}'s turn. Heroes refreshed and one card drawn.`);
+  setTurnBanner(`${current.name} Turn`);
   render();
 }
 
@@ -937,6 +998,8 @@ function submitIntent(intent) {
 }
 
 function renderHandCard(card, owner, isCurrent) {
+  const entering = fx.knownCardIds.has(card.id) ? "" : " entering";
+  fx.knownCardIds.add(card.id);
   const canPlay = isCurrent && canLocalTakeTurnActions() && canLocalControlPlayer(owner) && !game.gameOver;
   let extra = "";
   if (card.type === "hero") {
@@ -957,7 +1020,7 @@ function renderHandCard(card, owner, isCurrent) {
       ? `<button data-action="confirm-sacrifice" data-owner="${owner}">Confirm Sacrifice</button>`
       : "";
 
-  return `<div class="card ${card.type}"><strong>${card.name}</strong><span class="faint">${card.type.toUpperCase()}</span><span>${extra}</span>${btn}${pendingBtn}</div>`;
+  return `<div class="card ${card.type}${entering}"><strong>${card.name}</strong><span class="faint">${card.type.toUpperCase()}</span><span>${extra}</span>${btn}${pendingBtn}</div>`;
 }
 
 function renderBoardHero(hero, ownerIndex, isCurrent, enemyTargetable) {
@@ -967,6 +1030,14 @@ function renderBoardHero(hero, ownerIndex, isCurrent, enemyTargetable) {
   const selectedForSacrifice = game.pendingSacrifice && game.pendingSacrifice.chosen.has(hero.id);
 
   const classes = ["card", "hero"];
+  if (!fx.knownCardIds.has(hero.id)) classes.push("entering");
+  if (!fx.prevBoardCards.has(hero.id)) classes.push("summoned");
+  const previousDamage = fx.prevDamage.get(hero.id);
+  if (Number.isFinite(previousDamage) && hero.damage > previousDamage) classes.push("tookDamage");
+  if (Number.isFinite(previousDamage) && hero.damage < previousDamage) classes.push("healed");
+  const previousExhausted = fx.prevExhausted.get(hero.id);
+  if (previousExhausted === false && hero.exhausted) classes.push("swing");
+  fx.knownCardIds.add(hero.id);
   if (selectedForAttack || selectedForSacrifice) classes.push("selected");
 
   const parts = [
@@ -1041,8 +1112,22 @@ function render() {
 
   renderPlayer(0);
   renderPlayer(1);
+  captureFxSnapshot();
 
   ids.endTurnBtn.disabled = !canLocalTakeTurnActions() || game.gameOver;
+}
+
+function captureFxSnapshot() {
+  fx.prevDamage.clear();
+  fx.prevExhausted.clear();
+  fx.prevBoardCards.clear();
+  for (const player of game.players) {
+    for (const hero of player.board) {
+      fx.prevDamage.set(hero.id, hero.damage);
+      fx.prevExhausted.set(hero.id, hero.exhausted);
+      fx.prevBoardCards.add(hero.id);
+    }
+  }
 }
 
 document.body.addEventListener("click", (event) => {

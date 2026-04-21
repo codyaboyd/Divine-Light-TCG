@@ -7,6 +7,12 @@
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
+    <div id="cinematicFx" class="cinematicFx" aria-hidden="true">
+      <span class="fxWave"></span>
+      <span class="fxSpark fxSparkA"></span>
+      <span class="fxSpark fxSparkB"></span>
+      <span class="fxSpark fxSparkC"></span>
+    </div>
     <section id="startMenu" class="startMenu">
       <div class="menuBackdrop" aria-hidden="true">
         <span class="nebula orbA"></span>
@@ -30,6 +36,7 @@
         <h1>Divine Light PvP Digital TCG</h1>
         <p>Two-player hotseat battle with Hero, Mystic, and Environment cards.</p>
       </header>
+      <div id="turnBanner" class="turnBanner" aria-live="polite"></div>
 
       <main>
       <section id="statusPanel" class="panel">
