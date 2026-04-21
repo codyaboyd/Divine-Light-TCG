@@ -12,10 +12,14 @@ const HERO_LIBRARY = [
 ];
 
 const MYSTIC_LIBRARY = [
-  { name: "Runic Surge", effect: "boost", text: "+2 Attack and +2 Fortitude to one allied hero." },
+  { name: "Runic Surge", effect: "boost", text: "+2 Attack and +2 Fortitude to your weakest allied hero." },
   { name: "Forbidden Gate", effect: "freeSummon", text: "Next hero this turn ignores sacrifice requirements." },
-  { name: "Aegis Veil", effect: "shield", text: "One allied hero blocks the next incoming attack." },
+  { name: "Aegis Veil", effect: "shield", text: "Your most damaged allied hero blocks the next incoming attack." },
   { name: "Soul Recall", effect: "revive", text: "Revive one hero from your graveyard to battlefield." },
+  { name: "Null Hex", effect: "debuff", text: "Enemy hero with highest Attack gets -2 Attack and becomes exhausted." },
+  { name: "Sever Thread", effect: "removal", text: "Destroy the weakest enemy hero." },
+  { name: "Wellspring Rite", effect: "healFilter", text: "Heal 3 Fortitude to your most damaged hero, then draw 1 and discard 1." },
+  { name: "Rift Collapse", effect: "graveDenyEnv", text: "Banish up to 2 heroes from enemy graveyard, then refresh the environment." },
 ];
 
 const ENV_LIBRARY = [
