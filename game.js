@@ -433,6 +433,71 @@ function canAiUseMystic(card, player, opponent) {
   return true;
 }
 
+function evaluateBoardAdvantage(player, opponent, playerIndex) {
+  const allyPower = player.board.reduce((sum, hero) => {
+    const stats = calculateStats(hero, playerIndex);
+    const remainingFort = Math.max(0, stats.maxFortitude - hero.damage);
+    return sum + stats.attack * 1.35 + remainingFort;
+  }, 0);
+  const enemyPower = opponent.board.reduce((sum, hero) => {
+    const stats = calculateStats(hero, 1 - playerIndex);
+    const remainingFort = Math.max(0, stats.maxFortitude - hero.damage);
+    return sum + stats.attack * 1.35 + remainingFort;
+  }, 0);
+  return allyPower - enemyPower + (player.vitality - opponent.vitality) * 1.6;
+}
+
+function scoreAiNonHeroCard(card, player, opponent, difficulty, playerIndex) {
+  if (card.type === "environment") {
+    const alliedFactionUnits = player.board.filter((hero) => hero.faction === card.faction).length;
+    const enemyFactionUnits = opponent.board.filter((hero) => hero.faction === card.faction).length;
+    return 1 + alliedFactionUnits * 2.5 - enemyFactionUnits;
+  }
+
+  const boardDelta = evaluateBoardAdvantage(player, opponent, playerIndex);
+  const enemyThreat = opponent.board.reduce((sum, hero) => {
+    const stats = calculateStats(hero, 1 - playerIndex);
+    return sum + stats.attack;
+  }, 0);
+  const damagedAllies = player.board.filter((hero) => hero.damage > 0).length;
+
+  if (card.effect === "directDamage") {
+    const lethal = opponent.vitality <= 3 ? 1000 : 0;
+    return lethal + (opponent.board.length === 0 ? 9 : 6);
+  }
+  if (card.effect === "removal") {
+    if (!opponent.board.length) return -50;
+    const highestThreat = opponent.board.reduce((max, hero) => {
+      const stats = calculateStats(hero, 1 - playerIndex);
+      return Math.max(max, stats.attack + (stats.maxFortitude - hero.damage) * 0.4);
+    }, 0);
+    return 8 + highestThreat * 0.5;
+  }
+  if (card.effect === "forcedDuel") {
+    if (!player.board.length || !opponent.board.length) return -50;
+    const alliedBest = findHighestAttackHero(player.board, playerIndex);
+    const enemyBest = findHighestAttackHero(opponent.board, 1 - playerIndex);
+    const alliedAtk = calculateStats(alliedBest, playerIndex).attack;
+    const enemyAtk = calculateStats(enemyBest, 1 - playerIndex).attack;
+    return 4 + (alliedAtk - enemyAtk) * 1.4;
+  }
+  if (card.effect === "debuff") return 5 + enemyThreat * 0.35;
+  if (card.effect === "revive") return 5 + (5 - player.board.length) * 1.6;
+  if (card.effect === "shield") return 2 + (enemyThreat > 8 ? 4 : 0);
+  if (card.effect === "boost") return 2 + (player.board.length >= 2 ? 2 : 0) + (boardDelta < 0 ? 1 : 0);
+  if (card.effect === "healFilter") return 2 + damagedAllies * 1.8 + (player.deck.length <= 6 ? -2 : 0);
+  if (card.effect === "freeSummon") {
+    const expensiveHeroInHand = player.hand.some((handCard) => handCard.type === "hero" && handCard.skull >= 3 && handCard.skull <= 4);
+    return expensiveHeroInHand ? 7 : 1;
+  }
+  if (card.effect === "graveDenyEnv") {
+    const banishable = opponent.graveyard.filter((graveCard) => graveCard.type === "hero").length;
+    return 1 + banishable * 2;
+  }
+
+  return difficulty === "hard" ? 2 : 1;
+}
+
 function chooseAiSacrificeIds(board, cost, difficulty) {
   if (!board.length) return [];
   if (difficulty === "easy") {
@@ -487,10 +552,18 @@ function chooseAiHeroCard(player, difficulty) {
   if (difficulty === "easy") {
     return playable[Math.floor(Math.random() * playable.length)];
   }
-  if (difficulty === "hard") {
-    return playable.slice().sort((a, b) => b.skull - a.skull || b.attack - a.attack)[0];
-  }
-  return playable.slice().sort((a, b) => b.skull - a.skull)[0];
+
+  const ranked = playable
+    .slice()
+    .sort((a, b) => {
+      const aTempo = a.attack + a.fortitude + (hasKeyword(a, "Guard") ? 2 : 0) + (hasKeyword(a, "Flying") ? 1 : 0);
+      const bTempo = b.attack + b.fortitude + (hasKeyword(b, "Guard") ? 2 : 0) + (hasKeyword(b, "Flying") ? 1 : 0);
+      if (difficulty === "hard") {
+        return bTempo - aTempo || b.skull - a.skull;
+      }
+      return b.skull - a.skull || bTempo - aTempo;
+    });
+  return ranked[0];
 }
 
 function chooseAiNonHeroCard(player, opponent, difficulty) {
@@ -502,24 +575,10 @@ function chooseAiNonHeroCard(player, opponent, difficulty) {
     return usable[Math.floor(Math.random() * usable.length)];
   }
 
-  const scoreCard = (card) => {
-    if (card.type === "environment") return difficulty === "hard" ? 3 : 1;
-    const scores = {
-      directDamage: 10,
-      removal: 9,
-      forcedDuel: 8,
-      revive: 7,
-      debuff: 6,
-      boost: 5,
-      shield: 4,
-      healFilter: 3,
-      freeSummon: 2,
-      graveDenyEnv: 2,
-    };
-    return scores[card.effect] || 1;
-  };
-
-  return usable.slice().sort((a, b) => scoreCard(b) - scoreCard(a))[0];
+  const aiIndex = game.activePlayer;
+  return usable
+    .slice()
+    .sort((a, b) => scoreAiNonHeroCard(b, player, opponent, difficulty, aiIndex) - scoreAiNonHeroCard(a, player, opponent, difficulty, aiIndex))[0];
 }
 
 function chooseAiTarget(attacker, defenderOwner) {
@@ -554,9 +613,22 @@ function chooseAiTarget(attacker, defenderOwner) {
       const remaining = heroStats.maxFortitude - hero.damage;
       const killBonus = incoming >= remaining ? 100 : 0;
       const threat = heroStats.attack;
-      return { hero, score: killBonus + threat };
+      const retaliation = Math.max(0, threat);
+      const attackerStats = calculateStats(attacker, aiIndex);
+      const attackerRemaining = attackerStats.maxFortitude - attacker.damage;
+      const tradesWell = retaliation >= attackerRemaining ? -20 : 12;
+      return { hero, score: killBonus + threat + tradesWell };
     })
     .sort((a, b) => b.score - a.score);
+
+  if (difficulty === "hard" && canDirect) {
+    const bestTradeScore = scored[0].score;
+    const directAtk = calculateStats(attacker, aiIndex).attack;
+    const directDamage = defenderOwner.board.length > 0 ? Math.max(1, Math.floor(directAtk / 2)) : directAtk;
+    if (defenderOwner.vitality <= 8 && directDamage >= 2 && bestTradeScore < 120) {
+      return { type: "player" };
+    }
+  }
 
   if (difficulty === "medium" && canDirect && defenderOwner.board.length === 0) {
     return { type: "player" };
