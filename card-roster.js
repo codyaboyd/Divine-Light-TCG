@@ -19,6 +19,12 @@ const HERO_LIBRARY = [
   withAsset({ name: "Shesha, Endless Coil", skull: 3, attack: 3, fortitude: 5, faction: "Naga", keywords: ["Retaliate"] }, 8),
   withAsset({ name: "Yamata no Orochi", skull: 5, attack: 8, fortitude: 6, faction: "Yokai", keywords: ["Piercing", "Guard"] }, 9),
   withAsset({ name: "Garuda, Sky Judge", skull: 4, attack: 5, fortitude: 6, faction: "Naga", keywords: ["Flying", "Vanguard"] }, 10),
+  withAsset({ name: "Hera, Covenant Matron", skull: 2, attack: 3, fortitude: 3, faction: "Olympian", keywords: ["Guard"] }, 26),
+  withAsset({ name: "Thor Storm-Hammer", skull: 3, attack: 5, fortitude: 4, faction: "Aesir", keywords: ["Berserk"] }, 27),
+  withAsset({ name: "Bastet Moon Huntress", skull: 2, attack: 3, fortitude: 2, faction: "Netjer", keywords: ["Flying"] }, 28),
+  withAsset({ name: "Vasuki Coil-Tyrant", skull: 4, attack: 5, fortitude: 7, faction: "Naga", keywords: ["Retaliate", "Guard"] }, 29),
+  withAsset({ name: "Kitsune Veil Dancer", skull: 3, attack: 4, fortitude: 4, faction: "Yokai", keywords: ["Vanguard"] }, 30),
+  withAsset({ name: "Perseus, Gorgon Bane", skull: 4, attack: 6, fortitude: 5, faction: "Olympian", keywords: ["Piercing"] }, 31),
 ];
 
 const MYSTIC_LIBRARY = [
