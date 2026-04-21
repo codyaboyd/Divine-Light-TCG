@@ -9,10 +9,21 @@
   --danger: #f87171;
   --good: #86efac;
   --card: #252a37;
+  --border: #2f3548;
+  --content-max: 1700px;
+  --space-1: clamp(0.45rem, 0.45vw, 0.85rem);
+  --space-2: clamp(0.65rem, 0.75vw, 1.15rem);
+  --space-3: clamp(0.85rem, 1vw, 1.4rem);
+  --radius: clamp(10px, 0.9vw, 16px);
+  --font-base: clamp(14px, 0.38vw + 12px, 22px);
 }
 
 * {
   box-sizing: border-box;
+}
+
+html {
+  font-size: var(--font-base);
 }
 
 body {
@@ -24,46 +35,44 @@ body {
 
 header,
 main {
-  width: min(1200px, 96vw);
+  width: min(var(--content-max), 96vw);
   margin: 0 auto;
 }
 
 header {
-  padding: 1rem 0 0.25rem;
+  padding: var(--space-2) 0 var(--space-1);
 }
 
 h1,
 h2,
 h3,
 p {
-  margin: 0.4rem 0;
+  margin: 0.35em 0;
+}
+
+.panel,
+.playerPanel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-2);
 }
 
 .panel {
-  background: var(--panel);
-  border: 1px solid #2f3548;
-  border-radius: 12px;
-  padding: 0.85rem;
-  margin: 0.75rem 0;
+  margin: var(--space-2) 0;
 }
 
 .statusRow {
   display: flex;
-  gap: 0.5rem;
-  margin-bottom: 0.35rem;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-bottom: 0.45rem;
 }
 
 .boardGrid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
-}
-
-.playerPanel {
-  background: var(--panel);
-  border: 1px solid #2f3548;
-  border-radius: 12px;
-  padding: 0.85rem;
+  grid-template-columns: 1fr;
+  gap: var(--space-2);
 }
 
 .playerPanel.inactive {
@@ -72,41 +81,54 @@ p {
 
 .metrics {
   display: flex;
-  gap: 0.75rem;
+  gap: var(--space-1) var(--space-2);
   color: var(--muted);
-  margin-bottom: 0.6rem;
+  margin-bottom: var(--space-1);
   flex-wrap: wrap;
 }
 
 .zone {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-  gap: 0.6rem;
-  margin-bottom: 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(160px, 100%), 1fr));
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
 }
 
 .card {
   background: var(--card);
   border: 1px solid #3f465d;
-  border-radius: 10px;
-  padding: 0.5rem;
-  min-height: 145px;
+  border-radius: calc(var(--radius) - 2px);
+  padding: var(--space-1);
+  min-height: clamp(140px, 18vh, 240px);
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
 }
 
-.card button {
+button,
+select,
+textarea {
+  font: inherit;
+}
+
+.card button,
+.controls button,
+#netPanel button,
+#netPanel select {
   margin-top: auto;
   border: 1px solid #4f5a75;
   background: #2d3345;
   color: var(--ink);
-  border-radius: 8px;
-  padding: 0.32rem;
+  border-radius: 10px;
+  padding: 0.5rem 0.75rem;
+  min-height: 2.6rem;
   cursor: pointer;
 }
 
-.card button:hover {
+.card button:hover,
+.controls button:hover,
+#netPanel button:hover,
+#netPanel select:hover {
   border-color: var(--accent);
 }
 
@@ -131,22 +153,9 @@ p {
 }
 
 .controls {
-  display: flex;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
-.controls button {
-  border: 1px solid #4f5a75;
-  background: #2d3345;
-  color: var(--ink);
-  border-radius: 8px;
-  padding: 0.42rem 0.7rem;
-  cursor: pointer;
-}
-
-.controls button:hover {
-  border-color: var(--accent);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-1);
 }
 
 #netPanel textarea,
@@ -157,14 +166,10 @@ p {
 
 .netRow {
   display: grid;
-  grid-template-columns: auto 1fr auto auto 1fr;
-  gap: 0.5rem;
+  grid-template-columns: 1fr;
+  gap: var(--space-1);
   align-items: center;
-  margin-bottom: 0.6rem;
-}
-
-.netRow + .netRow {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: var(--space-1);
 }
 
 #netPanel textarea,
@@ -173,13 +178,14 @@ p {
   border: 1px solid #4f5a75;
   background: #2d3345;
   color: var(--ink);
-  border-radius: 8px;
-  padding: 0.42rem 0.55rem;
+  border-radius: 10px;
+  padding: 0.5rem 0.65rem;
 }
 
 #netPanel textarea {
   resize: vertical;
-  margin-bottom: 0.5rem;
+  min-height: 6rem;
+  margin-bottom: var(--space-1);
 }
 
 .win {
@@ -191,13 +197,86 @@ p {
   color: var(--danger);
 }
 
-@media (max-width: 920px) {
-  .boardGrid {
+/* Landscape phones and short screens */
+@media (orientation: landscape) and (max-height: 560px) {
+  html {
+    font-size: clamp(12px, 1.45vw, 16px);
+  }
+
+  header {
+    padding: 0.5rem 0 0.35rem;
+  }
+
+  main {
+    display: grid;
     grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .panel,
+  .playerPanel {
+    padding: 0.6rem;
+  }
+
+  .zone {
+    grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+  }
+
+  .card {
+    min-height: 128px;
   }
 
   .netRow,
+  .controls {
+    gap: 0.45rem;
+  }
+}
+
+/* Laptops and common desktops */
+@media (min-width: 900px) {
+  .boardGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .netRow:first-of-type {
+    grid-template-columns: auto minmax(160px, 220px) minmax(120px, 180px) auto 1fr;
+  }
+
   .netRow + .netRow {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .zone {
+    grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+  }
+}
+
+/* TVs and ultra-wide displays */
+@media (min-width: 1800px) {
+  :root {
+    --content-max: 2300px;
+    --font-base: clamp(18px, 0.35vw + 14px, 30px);
+  }
+
+  .boardGrid {
+    gap: var(--space-3);
+  }
+
+  .panel,
+  .playerPanel {
+    padding: var(--space-3);
+  }
+
+  .zone {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  }
+
+  .card {
+    min-height: clamp(180px, 16vh, 320px);
+  }
+
+  .controls {
+    grid-template-columns: repeat(3, minmax(220px, 1fr));
+    max-width: 60%;
   }
 }
