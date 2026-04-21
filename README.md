@@ -1,198 +1,30 @@
-# Divine Light PvP Digital TCG
+# Mythos Ascendant PvP Digital TCG
 
-A lightweight JavaScript digital trading card battle game with local hotseat and online WebRTC PvP.
+A lightweight JavaScript digital trading card battle game where gods and mythical creatures from world mythologies clash in local hotseat or online WebRTC PvP.
 
 ## Features
 
-- **Hero cards** with 1-5 skull ratings, attack, and fortitude.
+- **Deity cards** with 1-5 skull ratings, attack, fortitude, faction, and keywords.
 - **Play tempo layer**:
-  - You may play up to **one Hero card per turn**.
-  - You may also play up to **one non-Hero card per turn** (Mystic or Environment).
-- **Sacrifice system**:
-  - 1-2 skull heroes can be played freely.
-  - 3-5 skull heroes require sacrificing heroes whose skull total meets or exceeds the card's skull cost.
-- **Mystic cards** with expanded effects:
-  - Stat boost and shielding
-  - Free 3-4 skull summon (no sacrifice)
-  - Revival from graveyard
-  - Enemy debuff and targeted removal
-  - Forced duels that break board parity
-  - Limited direct vitality damage
-  - Fortitude healing with draw/discard filtering
-  - Graveyard denial and environment refresh
-- **Environment cards**:
-  - Exactly one global environment at a time.
-  - Playing a new one replaces the old one, regardless of owner.
-  - Environment boosts a specific faction's heroes.
-- **Faction identity package**: every faction now has a gameplay keyword and combat style that informs deckbuilding.
-- **Vitality and overflow damage**:
-  - Players start with vitality.
-  - Overkill damage to a hero spills over to player vitality.
-- **Combat pacing rules for balance**:
-  - Direct attacks are usually blocked by defenders, but **Piercing** heroes can push reduced direct damage through.
-  - Free summon effects cannot bypass sacrifice costs for 5-skull heroes.
-- **Online PvP over WebRTC**:
-  - Host/join modes with manual SDP exchange (copy/paste).
-  - Peer-to-peer sync using a data channel (host-authoritative game state).
-  - Opponent hand is hidden during online matches.
-
-## Detailed Rules
-
-### 1) Objective
-- Reduce the opponent's **Vitality** to 0.
-- Each player starts at **30 Vitality**.
-- If both players drop to 0 or less at the same time, the duel is a draw.
-
-### 2) Deck and Starting Setup
-- Each player's deck is generated with:
-  - **16 Hero cards**
-  - **8 Mystic cards**
-  - **5 Environment cards**
-- At game start, both players draw **5 cards**.
-- There is no mulligan system.
-
-### 3) Board, Hand, and Limits
-- **Battlefield limit:** up to **5 heroes** per player.
-- **Hand limit:** up to **10 cards**.
-- If your deck is empty, you cannot draw.
-
-### 4) Card Types
-
-#### Heroes
-- Have **Skulls** (cost/rank), **Attack**, **Fortitude**, and **Faction**.
-- Enter play **exhausted** (cannot attack immediately that turn).
-- Some heroes have **Keywords**:
-  - **Piercing:** this hero can directly attack vitality even if enemy heroes are present (damage is halved, minimum 1).
-  - **Guard:** enemy attacks must target a Guard hero first unless the attacker has Flying.
-  - **Flying:** can bypass Guard targeting restrictions.
-  - **Berserk:** gains +2 Attack while damaged.
-  - **Deathburst:** when defeated or sacrificed, deal 1 damage to the opposing player's vitality.
-  - **Vanguard:** enters with Shield.
-  - **Retaliate:** deals +1 retaliation damage when defending.
-  - **Shattershield:** when attacking a shielded target, remove its shield and continue combat instead of being fully blocked.
-
-#### Mystics
-Mystics are cast from hand, then go to graveyard after resolving:
-- **Runic Surge (boost):** Gives your weakest allied hero +2 Attack and +2 Fortitude.
-- **Forbidden Gate (free summon):** Lets you summon one 3-4 skull hero this turn without sacrifice.
-- **Aegis Veil (shield):** Gives your most damaged allied hero a one-time shield against the next incoming attack.
-- **Soul Recall (revive):** Revives one hero from your graveyard to your battlefield (if space is available).
-- **Null Hex (debuff):** Enemy hero with highest Attack gets -2 Attack and becomes exhausted.
-- **Sever Thread (removal):** Destroys the weakest enemy hero.
-- **Blood Oath Challenge (forced duel):** Highest-Attack allied hero and enemy hero immediately duel.
-- **Cinder Volley (direct damage):** Deals 3 direct vitality damage to the enemy player.
-- **Wellspring Rite (heal/filter):** Heal 3 damage from your most damaged allied hero, then draw 1 and discard 1.
-- **Rift Collapse (grave deny/environment):** Banish up to two enemy heroes from graveyard, then replace the environment from your deck (or clear it).
-
-#### Environments
-- Only **one** environment exists globally.
-- Playing a new environment replaces the current one.
-- Environment buffs apply to matching faction heroes: **+1 Attack / +1 Fortitude**.
-
-#### Faction identities
-Each faction has a baseline style and keyword hook so deck themes are mechanically distinct:
-
-- **Flame — Aggression / Burn:** Flame heroes gain **+1 Attack during your turn** while they are unshielded. This faction is tuned for pressure and fast lethality.
-- **Radiant — Shield / Control:** The first time each turn you play a Radiant hero, give it **Ward** (blocks the next incoming attack this turn). Radiant decks stall and win through favorable trades.
-- **Umbral — Sacrifice Value:** Once per turn, when one of your heroes is sacrificed, your lowest-skull Umbral hero gets **+1/+1 permanently**. Umbral decks convert board resources into scaling threats.
-- **Tide — Revival Loop:** The first Tide hero you revive each turn enters **ready** instead of exhausted. Tide decks grind with recursion and repeated value.
-- **Lunar — Tempo / Reposition:** The first time each turn a Lunar hero attacks, it may **ready one allied hero with 2 or less skulls**. Lunar decks emphasize sequencing and multi-action turns.
-
-These faction hooks are additive with Environment buffs and are intended to define archetypes (aggro, control, sacrifice-midrange, recursion, tempo-combo).
-
-### 5) Summoning and Sacrifice Rules
-- **Play cap each turn:**
-  - Up to **1 Hero play**.
-  - Up to **1 non-Hero play** (Mystic or Environment).
-- **1-2 skull heroes:** free summon (no sacrifice needed).
-- **3-5 skull heroes:** require sacrifice unless bypassed by a free-summon effect.
-- To sacrifice:
-  - Select allied heroes on your board.
-  - Total selected skulls must be **at least** the summoned hero's skull value.
-  - Selected heroes are moved to your graveyard.
-- **Forbidden Gate restriction:**
-  - Can bypass sacrifice only for **3-4 skull** heroes.
-  - **Cannot** bypass sacrifice for **5-skull** heroes.
-- Free summon status expires if unused by end of turn.
-
-### 6) Turn Structure
-On your turn you can:
-- Play up to **one Hero** and up to **one non-Hero** card.
-- Attack with ready heroes.
-- End turn.
-
-At **end turn**:
-1. Active player switches.
-2. New active player's heroes are refreshed (exhaustion removed).
-3. New active player draws **1 card**.
-4. New turn begins.
-
-### 7) Drawing Cards
-- Each player draws 5 at game start.
-- At the start of each player's turn (after turn passes), they draw 1 automatically.
-
-### 8) Combat Rules
-
-#### Attacking heroes
-- An attacker must be unexhausted.
-- Hero combat is simultaneous:
-  - Attacker deals damage to target.
-  - Target retaliates with its Attack.
-- Both units can be defeated in the same battle.
-
-#### Shield interaction
-- If the defender is shielded, the attack is fully blocked:
-  - Shield is removed.
-  - Attacker still becomes exhausted.
-  - No combat damage is exchanged.
-- Exception: attackers with **Shattershield** still remove shield, then combat continues.
-
-#### Guard and Flying
-- If a defending player controls at least one **Guard** hero, enemy attacks must target a Guard hero first.
-- Heroes with **Flying** can ignore Guard targeting.
-
-#### Direct attacks
-- Normally, you can attack the opposing player directly **only if they control no heroes**.
-- Exception: heroes with **Piercing** may still attack directly through defenders for half damage (minimum 1).
-
-#### Overflow damage
-- If attack damage exceeds a target hero's remaining fortitude, excess damage is dealt to the defending player's Vitality.
-
-### 9) Damage and Defeat
-- Heroes track accumulated damage.
-- A hero is defeated when damage is greater than or equal to its current max fortitude.
-- Defeated heroes are sent to graveyard.
-
-### 10) Graveyard and Revival
-- Sacrificed heroes and defeated cards go to graveyard.
-- **Soul Recall** revives the top hero in graveyard order to the battlefield:
-  - Revived hero enters exhausted.
-  - Revived hero has no damage.
-  - Revived hero is not shielded.
-
-### 11) Faction Identity Rules Clarifications
-- Faction identity effects are always active unless a card specifically overrides them.
-- "First time each turn" resets at the start of the active player's turn.
-- If multiple effects trigger simultaneously, the active player orders their own triggers first, then the defending player orders theirs.
-- A hero can only have one shield instance at a time (from Ward/Aegis Veil); additional shield grants refresh, not stack.
-
-
-### 12) Timing and Edge-Case Clarifications
-- **Fortitude threshold updates immediately:** if a hero's max Fortitude changes (buff gained or lost), defeat checks use the new max Fortitude right away.
-- **Environment replacement can cause immediate defeats:** if replacing/clearing the environment removes Fortitude and a hero's current damage is now >= its new max Fortitude, that hero is defeated immediately and sent to graveyard.
-- **Hand limit behavior:** the 10-card hand limit is a hard cap. Draws that would exceed 10 are denied immediately (no overdraw, no immediate discard, and no end-turn cleanup discard step).
-- **Revive is not summon-play:** revived heroes enter via revive resolution, not normal summon. They do not trigger "on summon/play" style effects unless an effect explicitly says it triggers on revive.
-- **Simultaneous lethal + overflow resolution:** in hero combat, hero damage and retaliation are assigned simultaneously, overflow is computed from the attacker's excess over the defender's current Fortitude, then all resulting vitality changes are applied before win check. If both players are at 0 or less after the full resolution, the duel is a draw.
-
-### 13) Online PvP Rules (WebRTC)
-- Host is authoritative for game state.
-- Guest sends intents (play card, attack, etc.) to host.
-- Host validates actions and broadcasts the updated state.
-- In online mode:
-  - Host controls Player 1.
-  - Guest controls Player 2.
-  - You can only act on your own turn.
-  - Opponent hand contents are hidden.
+  - Up to **one Deity card per turn**.
+  - Up to **one non-Deity card per turn** (Relic or Realm).
+- **Offering system**:
+  - 1-2 skull deities can be played freely.
+  - 3-5 skull deities require offering allied deities whose skull total meets or exceeds the card's skull cost.
+- **Relic cards** with tactical effects:
+  - Empowering, shielding, revival, debuffs, removal, forced duels, direct vitality damage, healing/filtering, and grave denial.
+- **Realm cards**:
+  - Exactly one global realm at a time.
+  - Playing a new one replaces the old one.
+  - Realm blessings buff one faction's units.
+- **Faction identity package** with five world-myth inspired factions:
+  - **Olympian** (aegis control)
+  - **Aesir** (aggression)
+  - **Netjer** (sacrifice scaling)
+  - **Naga** (revival loop)
+  - **Yokai** (tempo repositioning)
+- **Vitality and overflow damage** support, plus combat keyword interactions.
+- **Online PvP over WebRTC** with host/join and host-authoritative state sync.
 
 ## Run
 
@@ -201,6 +33,6 @@ Open `index.html` in any modern browser.
 No build step is required.
 
 For online play:
-1. Host chooses **Host Match**, then clicks **Create Offer** and shares the local signal blob.
-2. Guest chooses **Join Match**, pastes the host offer in **Remote Signal**, clicks **Create Answer**, and shares their local signal.
+1. Host chooses **Host Conclave**, then clicks **Create Offer** and shares the local signal blob.
+2. Guest chooses **Join Conclave**, pastes the host offer in **Remote Signal**, clicks **Create Answer**, and shares their local signal.
 3. Host pastes the guest answer into **Remote Signal** and clicks **Set Remote Description**.

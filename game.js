@@ -212,10 +212,10 @@ function createPlayer(name) {
     graveyard: [],
     banished: [],
     freeSummonReady: false,
-    radiantWardUsed: false,
-    umbralSacrificeUsed: false,
-    tideReviveUsed: false,
-    lunarAttackUsed: false,
+    olympianAegisUsed: false,
+    netjerSacrificeUsed: false,
+    nagaReviveUsed: false,
+    yokaiAttackUsed: false,
   };
 }
 
@@ -276,7 +276,7 @@ function calculateStats(hero, ownerIndex = null) {
   const envAttack = game.environment && game.environment.faction === hero.faction ? game.environment.buffAttack : 0;
   const envFort = game.environment && game.environment.faction === hero.faction ? game.environment.buffFortitude : 0;
   const flameAttack =
-    hero.faction === "Flame" &&
+    hero.faction === "Aesir" &&
     !hero.shielded &&
     ownerIndex !== null &&
     ownerIndex === game.activePlayer
@@ -312,39 +312,39 @@ function resolveDeathKeywords(hero, owner, opponent) {
 }
 
 function resetFactionTurnFlags(player) {
-  player.radiantWardUsed = false;
-  player.umbralSacrificeUsed = false;
-  player.tideReviveUsed = false;
-  player.lunarAttackUsed = false;
+  player.olympianAegisUsed = false;
+  player.netjerSacrificeUsed = false;
+  player.nagaReviveUsed = false;
+  player.yokaiAttackUsed = false;
 }
 
-function applyRadiantWardOnSummon(player, hero) {
-  if (hero.faction === "Radiant" && !player.radiantWardUsed) {
+function applyOlympianAegisOnSummon(player, hero) {
+  if (hero.faction === "Olympian" && !player.olympianAegisUsed) {
     hero.shielded = true;
-    player.radiantWardUsed = true;
+    player.olympianAegisUsed = true;
     return true;
   }
   return false;
 }
 
-function applyUmbralSacrificeBonus(player) {
-  if (player.umbralSacrificeUsed) return null;
-  const candidates = player.board.filter((hero) => hero.faction === "Umbral");
+function applyNetjerSacrificeBonus(player) {
+  if (player.netjerSacrificeUsed) return null;
+  const candidates = player.board.filter((hero) => hero.faction === "Netjer");
   if (candidates.length === 0) return null;
   candidates.sort((a, b) => a.skull - b.skull);
   const target = candidates[0];
   target.attackMod += 1;
   target.fortMod += 1;
-  player.umbralSacrificeUsed = true;
+  player.netjerSacrificeUsed = true;
   return target;
 }
 
-function triggerLunarReposition(attackerOwner, attacker) {
-  if (attacker.faction !== "Lunar" || attackerOwner.lunarAttackUsed) return null;
+function triggerYokaiReposition(attackerOwner, attacker) {
+  if (attacker.faction !== "Yokai" || attackerOwner.yokaiAttackUsed) return null;
   const target = attackerOwner.board.find((hero) => hero.skull <= 2 && hero.exhausted);
   if (!target) return null;
   target.exhausted = false;
-  attackerOwner.lunarAttackUsed = true;
+  attackerOwner.yokaiAttackUsed = true;
   return target;
 }
 
@@ -401,7 +401,7 @@ function startGame() {
   }
 
   resetExhaustion(game.players[0]);
-  setAction("New duel started. You may play up to 1 hero and 1 non-hero card (Mystic or Environment) each turn. 1-2 skull heroes are free, 3-5 skull heroes require sacrifices unless bypassed by Mystic cards (3-4 skull only). Direct attacks usually require a clear enemy board unless the attacker has Piercing. Hero combat includes retaliation + overflow, and you draw automatically at the beginning of each turn.");
+  setAction("New mythic clash started. You may play up to 1 deity and 1 non-deity card (Relic or Realm) each turn. 1-2 skull deities are free, 3-5 skull deities require offerings unless bypassed by Relic cards (3-4 skull only). Direct strikes usually require a clear enemy board unless the attacker has Piercing. Combat includes retaliation + overflow, and you draw automatically at the beginning of each turn.");
   setTurnBanner("Player 1 Turn");
   render();
 }
@@ -479,7 +479,7 @@ function findHighestAttackHero(board, ownerIndex = null) {
 
 function canPlayHero(player, hero) {
   if (player.board.length >= 5) {
-    return { ok: false, reason: "Battlefield is full (max 5 heroes)." };
+    return { ok: false, reason: "Battlefield is full (max 5 deities)." };
   }
   if (hero.skull <= 2) {
     return { ok: true };
@@ -488,7 +488,7 @@ function canPlayHero(player, hero) {
     return { ok: true };
   }
   if (player.freeSummonReady && hero.skull >= 5) {
-    return { ok: false, reason: "Free Summon can only bypass sacrifice for 3-4 skull heroes." };
+    return { ok: false, reason: "Divine Gateway can only bypass offerings for 3-4 skull deities." };
   }
   return { ok: true, needsSacrifice: true };
 }
@@ -509,7 +509,7 @@ function playHero(player, cardId) {
       cost: hero.skull,
       chosen: new Set(),
     };
-    setAction(`Select allied heroes to sacrifice for ${hero.name}. Need ${hero.skull} total skulls, then click Confirm Sacrifice on the hero card.`);
+    setAction(`Select allied deities to offer for ${hero.name}. Need ${hero.skull} total skulls, then click Confirm Sacrifice on the deity card.`);
     render();
     return false;
   }
@@ -517,14 +517,14 @@ function playHero(player, cardId) {
   const movedHero = removeCardById(player.hand, cardId);
   movedHero.exhausted = true;
   player.board.push(movedHero);
-  const gotWard = applyRadiantWardOnSummon(player, movedHero);
+  const gotWard = applyOlympianAegisOnSummon(player, movedHero);
   const summonNotes = applySummonKeywords(movedHero);
   if (player.freeSummonReady && movedHero.skull > 2) {
     player.freeSummonReady = false;
   }
   setAction(
     `${player.name} summoned ${movedHero.name}.` +
-      `${gotWard ? " Ward granted." : ""}` +
+      `${gotWard ? " Aegis granted." : ""}` +
       `${summonNotes.length ? ` ${summonNotes.join(". ")}.` : ""}`
   );
   render();
@@ -557,11 +557,11 @@ function confirmSacrifice(player) {
   }
   const opponent = getOpponent();
   const deathNotes = sacrificed.flatMap((hero) => resolveDeathKeywords(hero, player, opponent));
-  const umbralBuffTarget = applyUmbralSacrificeBonus(player);
+  const umbralBuffTarget = applyNetjerSacrificeBonus(player);
 
   const heroToPlay = removeCardById(player.hand, game.pendingSacrifice.heroCardId);
   if (!heroToPlay) {
-    setAction("Summon failed: hero card no longer in hand.", true);
+    setAction("Summon failed: deity card no longer in hand.", true);
     game.pendingSacrifice = null;
     render();
     return false;
@@ -569,13 +569,13 @@ function confirmSacrifice(player) {
 
   heroToPlay.exhausted = true;
   player.board.push(heroToPlay);
-  const gotWard = applyRadiantWardOnSummon(player, heroToPlay);
+  const gotWard = applyOlympianAegisOnSummon(player, heroToPlay);
   const summonNotes = applySummonKeywords(heroToPlay);
   game.pendingSacrifice = null;
   setAction(
     `${player.name} sacrificed ${skullTotal} skulls and summoned ${heroToPlay.name}.` +
-      `${umbralBuffTarget ? ` ${umbralBuffTarget.name} gained +1/+1 from Umbral rite.` : ""}` +
-      `${gotWard ? " Ward granted." : ""}` +
+      `${umbralBuffTarget ? ` ${umbralBuffTarget.name} gained +1/+1 from Netjer rite.` : ""}` +
+      `${gotWard ? " Aegis granted." : ""}` +
       `${summonNotes.length ? ` ${summonNotes.join(". ")}.` : ""}` +
       `${deathNotes.length ? ` ${deathNotes.join(". ")}.` : ""}`
   );
@@ -602,7 +602,7 @@ function playMystic(player, cardId) {
   if (card.effect === "boost") {
     if (player.board.length === 0) {
       player.hand.push(card);
-      setAction("Need an allied hero on board to boost.", true);
+      setAction("Need an allied deity on board to empower.", true);
       return false;
     }
     const target = findWeakestHero(player.board, game.activePlayer);
@@ -611,11 +611,11 @@ function playMystic(player, cardId) {
     setAction(`${card.name} boosted ${target.name} (+2/+2).`);
   } else if (card.effect === "freeSummon") {
     player.freeSummonReady = true;
-    setAction(`${player.name} can summon one 3-4 skull hero this turn with no sacrifice.`);
+    setAction(`${player.name} can summon one 3-4 skull deity this turn with no offering.`);
   } else if (card.effect === "shield") {
     if (player.board.length === 0) {
       player.hand.push(card);
-      setAction("Need an allied hero on board to shield.", true);
+      setAction("Need an allied deity on board for divine shield.", true);
       return false;
     }
     const target = findMostDamagedHero(player.board, game.activePlayer);
@@ -624,28 +624,28 @@ function playMystic(player, cardId) {
   } else if (card.effect === "revive") {
     if (player.graveyard.length === 0) {
       player.hand.push(card);
-      setAction("No heroes in graveyard to revive.", true);
+      setAction("No deities in the underworld to revive.", true);
       return false;
     }
     if (player.board.length >= 5) {
       player.hand.push(card);
-      setAction("Cannot revive: battlefield full (max 5 heroes).", true);
+      setAction("Cannot revive: battlefield full (max 5 deities).", true);
       return false;
     }
     const revived = player.graveyard.shift();
     revived.damage = 0;
-    const tideReady = revived.faction === "Tide" && !player.tideReviveUsed;
+    const tideReady = revived.faction === "Naga" && !player.nagaReviveUsed;
     revived.exhausted = !tideReady;
     revived.shielded = false;
     player.board.push(revived);
     if (tideReady) {
-      player.tideReviveUsed = true;
+      player.nagaReviveUsed = true;
     }
-    setAction(`${player.name} revived ${revived.name}.${tideReady ? " It entered ready (Tide identity)." : ""}`);
+    setAction(`${player.name} revived ${revived.name}.${tideReady ? " It entered ready (Naga legacy)." : ""}`);
   } else if (card.effect === "debuff") {
     if (opponent.board.length === 0) {
       player.hand.push(card);
-      setAction("No enemy hero to debuff.", true);
+      setAction("No enemy deity to curse.", true);
       return false;
     }
     const target = findHighestAttackHero(opponent.board, 1 - game.activePlayer);
@@ -655,7 +655,7 @@ function playMystic(player, cardId) {
   } else if (card.effect === "removal") {
     if (opponent.board.length === 0) {
       player.hand.push(card);
-      setAction("No enemy hero to remove.", true);
+      setAction("No enemy deity to banish.", true);
       return false;
     }
     const target = findWeakestHero(opponent.board, 1 - game.activePlayer);
@@ -666,7 +666,7 @@ function playMystic(player, cardId) {
   } else if (card.effect === "forcedDuel") {
     if (player.board.length === 0 || opponent.board.length === 0) {
       player.hand.push(card);
-      setAction("Forced duel requires both players to control at least one hero.", true);
+      setAction("Divine duel requires both players to control at least one deity.", true);
       return false;
     }
 
@@ -748,16 +748,16 @@ function playMystic(player, cardId) {
     if (nextEnvIndex >= 0) {
       const [newEnvironment] = player.deck.splice(nextEnvIndex, 1);
       game.environment = newEnvironment;
-      envText = ` Environment shifted to ${newEnvironment.name}.`;
+      envText = ` Realm shifted to ${newEnvironment.name}.`;
     } else {
       game.environment = null;
-      envText = " Environment was cleared.";
+      envText = " Realm was cleared.";
     }
 
     const collapseDefeatNotes = applyStateBasedDefeats();
 
     setAction(
-      `${card.name} banished ${toBanish.length} enemy hero${toBanish.length === 1 ? "" : "es"} from the graveyard.${envText}` +
+      `${card.name} banished ${toBanish.length} enemy deit${toBanish.length === 1 ? "y" : "ies"} from the graveyard.${envText}` +
         `${collapseDefeatNotes.length ? ` ${collapseDefeatNotes.join(" ")}` : ""}`
     );
   }
@@ -773,7 +773,7 @@ function playEnvironment(player, cardId) {
   game.environment = card;
   const envDefeatNotes = applyStateBasedDefeats();
   setAction(
-    `${player.name} changed the environment to ${card.name}. ${card.faction} heroes gain +${card.buffAttack}/+${card.buffFortitude}.` +
+    `${player.name} invoked the realm ${card.name}. ${card.faction} units gain +${card.buffAttack}/+${card.buffFortitude}.` +
       `${envDefeatNotes.length ? ` ${envDefeatNotes.join(" ")}` : ""}`
   );
   checkWin();
@@ -787,7 +787,7 @@ function attackHero(attackerOwner, defenderOwner, attackerId, targetId) {
   if (!attacker || !target || attacker.exhausted) return;
 
   if (hasGuardHero(defenderOwner.board) && !hasKeyword(target, "Guard") && !hasKeyword(attacker, "Flying")) {
-    setAction("A Guard hero must be targeted first (unless the attacker has Flying).", true);
+    setAction("A Guardian deity must be targeted first (unless the attacker has Flying).", true);
     render();
     return;
   }
@@ -796,10 +796,10 @@ function attackHero(attackerOwner, defenderOwner, attackerId, targetId) {
     target.shielded = false;
     if (!hasKeyword(attacker, "Shattershield")) {
       attacker.exhausted = true;
-      const lunarTarget = triggerLunarReposition(attackerOwner, attacker);
+      const lunarTarget = triggerYokaiReposition(attackerOwner, attacker);
       setAction(
         `${target.name}'s shield blocked ${attacker.name}'s attack.` +
-          `${lunarTarget ? ` ${lunarTarget.name} was readied by Lunar tempo.` : ""}`
+          `${lunarTarget ? ` ${lunarTarget.name} was readied by Yokai trickery.` : ""}`
       );
       return;
     }
@@ -817,7 +817,7 @@ function attackHero(attackerOwner, defenderOwner, attackerId, targetId) {
   target.damage += atk;
   attacker.damage += retaliation;
   attacker.exhausted = true;
-  const lunarTarget = triggerLunarReposition(attackerOwner, attacker);
+  const lunarTarget = triggerYokaiReposition(attackerOwner, attacker);
   const targetDefeated = target.damage >= targetStats.maxFortitude;
   const attackerDefeated = attacker.damage >= attackerStats.maxFortitude;
 
@@ -845,7 +845,7 @@ function attackHero(attackerOwner, defenderOwner, attackerId, targetId) {
       `${targetDefeated ? ` ${target.name} was defeated.` : ""}` +
       `${attackerDefeated ? ` ${attacker.name} was defeated.` : ""}` +
       `${overflow > 0 ? ` ${overflow} overflow damage hit ${defenderOwner.name}'s vitality.` : ""}` +
-      `${lunarTarget ? ` ${lunarTarget.name} was readied by Lunar tempo.` : ""}` +
+      `${lunarTarget ? ` ${lunarTarget.name} was readied by Yokai trickery.` : ""}` +
       `${deathNotes.length ? ` ${deathNotes.join(". ")}.` : ""}`
   );
 
@@ -859,12 +859,12 @@ function attackPlayer(attackerOwner, defenderOwner, attackerId) {
   const canPierce = hasKeyword(attacker, "Piercing");
   const canBypassGuard = hasKeyword(attacker, "Flying");
   if (hasGuardHero(defenderOwner.board) && !canBypassGuard) {
-    setAction("Direct attack is blocked while the opponent controls Guard heroes (unless attacker has Flying).", true);
+    setAction("Direct attack is blocked while the opponent controls Guardian deities (unless attacker has Flying).", true);
     render();
     return;
   }
   if (defenderOwner.board.length > 0 && !canPierce) {
-    setAction("Direct attack is blocked while the opponent controls heroes (unless attacker has Piercing).", true);
+    setAction("Direct attack is blocked while the opponent controls deities (unless attacker has Piercing).", true);
     render();
     return;
   }
@@ -872,11 +872,11 @@ function attackPlayer(attackerOwner, defenderOwner, attackerId) {
   const directDamage = defenderOwner.board.length > 0 ? Math.max(1, Math.floor(atk / 2)) : atk;
   defenderOwner.vitality -= directDamage;
   attacker.exhausted = true;
-  const lunarTarget = triggerLunarReposition(attackerOwner, attacker);
+  const lunarTarget = triggerYokaiReposition(attackerOwner, attacker);
   setAction(
     `${attacker.name} attacked directly for ${directDamage} vitality damage.` +
       `${defenderOwner.board.length > 0 ? " Piercing reduced the damage through defenders." : ""}` +
-      `${lunarTarget ? ` ${lunarTarget.name} was readied by Lunar tempo.` : ""}`
+      `${lunarTarget ? ` ${lunarTarget.name} was readied by Yokai trickery.` : ""}`
   );
   checkWin();
   render();
@@ -917,7 +917,7 @@ function endTurn() {
   resetExhaustion(current);
   drawCard(current);
 
-  setAction(`${current.name}'s turn. Heroes refreshed and one card drawn.`);
+  setAction(`${current.name}'s turn. Deities refreshed and one card drawn.`);
   setTurnBanner(`${current.name} Turn`);
   render();
 }
@@ -939,7 +939,7 @@ function processIntent(intent, fromRemote = false) {
     if (!card) return;
     if (card.type === "hero") {
       if (game.heroPlayUsed) {
-        setAction("You may only play one hero each turn.", true);
+        setAction("You may only play one deity each turn.", true);
         render();
         return;
       }
@@ -947,7 +947,7 @@ function processIntent(intent, fromRemote = false) {
       if (played) game.heroPlayUsed = true;
     } else {
       if (game.nonHeroPlayUsed) {
-        setAction("You may only play one non-hero card (Mystic or Environment) each turn.", true);
+        setAction("You may only play one non-deity card (Relic or Realm) each turn.", true);
         render();
         return;
       }
@@ -961,7 +961,7 @@ function processIntent(intent, fromRemote = false) {
     toggleSacrificeSelection(intent.cardId);
   } else if (intent.type === "select-attacker") {
     game.selectedAttackerId = intent.cardId;
-    setAction("Attacker selected. Choose an enemy hero or direct attack.");
+    setAction("Attacker selected. Choose an enemy deity or direct attack.");
     render();
   } else if (intent.type === "target-enemy") {
     attackHero(current, opponent, game.selectedAttackerId, intent.cardId);
@@ -1101,7 +1101,7 @@ function renderPlayer(index) {
     game.selectedAttackerId &&
     (game.players[1 - index].board.length === 0 ||
       hasKeyword(player.board.find((hero) => hero.id === game.selectedAttackerId), "Piercing"))
-      ? `<div class="card"><strong>Direct Attack</strong><button data-action="target-player" data-owner="${index}">Hit Enemy Vitality</button></div>`
+      ? `<div class="card"><strong>Direct Attack</strong><button data-action="target-player" data-owner="${index}">Strike Enemy Vitality</button></div>`
       : "");
 
   hand.innerHTML = canViewHand
@@ -1112,7 +1112,7 @@ function renderPlayer(index) {
 function render() {
   ids.currentPlayerName.textContent = getCurrentPlayer().name;
   ids.environmentName.textContent = game.environment
-    ? `${game.environment.name} (boosts ${game.environment.faction})`
+    ? `${game.environment.name} (blesses ${game.environment.faction})`
     : "None";
 
   renderPlayer(0);
@@ -1175,10 +1175,10 @@ ids.applyNetModeBtn.addEventListener("click", () => {
   );
   setAction(
     net.mode === "local"
-      ? "Local hotseat enabled."
+      ? "Local council mode enabled."
       : net.mode === "host"
-        ? "Host mode enabled. Create an offer and share it."
-        : "Guest mode enabled. Paste host offer, create answer, and share it back."
+        ? "Host conclave enabled. Create an offer and share it."
+        : "Guest conclave enabled. Paste host offer, create answer, and share it back."
   );
   render();
 });
