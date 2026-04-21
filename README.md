@@ -63,6 +63,13 @@ A lightweight JavaScript digital trading card battle game with local hotseat and
 - Enter play **exhausted** (cannot attack immediately that turn).
 - Some heroes have **Keywords**:
   - **Piercing:** this hero can directly attack vitality even if enemy heroes are present (damage is halved, minimum 1).
+  - **Guard:** enemy attacks must target a Guard hero first unless the attacker has Flying.
+  - **Flying:** can bypass Guard targeting restrictions.
+  - **Berserk:** gains +2 Attack while damaged.
+  - **Deathburst:** when defeated or sacrificed, deal 1 damage to the opposing player's vitality.
+  - **Vanguard:** enters with Shield.
+  - **Retaliate:** deals +1 retaliation damage when defending.
+  - **Shattershield:** when attacking a shielded target, remove its shield and continue combat instead of being fully blocked.
 
 #### Mystics
 Mystics are cast from hand, then go to graveyard after resolving:
@@ -138,6 +145,11 @@ At **end turn**:
   - Shield is removed.
   - Attacker still becomes exhausted.
   - No combat damage is exchanged.
+- Exception: attackers with **Shattershield** still remove shield, then combat continues.
+
+#### Guard and Flying
+- If a defending player controls at least one **Guard** hero, enemy attacks must target a Guard hero first.
+- Heroes with **Flying** can ignore Guard targeting.
 
 #### Direct attacks
 - Normally, you can attack the opposing player directly **only if they control no heroes**.

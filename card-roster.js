@@ -1,14 +1,14 @@
 const HERO_LIBRARY = [
-  { name: "Acolyte of Embers", skull: 1, attack: 2, fortitude: 2, faction: "Flame" },
-  { name: "Moonblade Scout", skull: 1, attack: 1, fortitude: 3, faction: "Lunar", keywords: ["Piercing"] },
-  { name: "Sanctum Defender", skull: 2, attack: 2, fortitude: 4, faction: "Radiant" },
-  { name: "Grave Oath Knight", skull: 2, attack: 3, fortitude: 3, faction: "Umbral" },
-  { name: "Solar Templar", skull: 3, attack: 4, fortitude: 4, faction: "Radiant" },
-  { name: "Ashfang Titan", skull: 4, attack: 6, fortitude: 5, faction: "Flame", keywords: ["Piercing"] },
-  { name: "Night Crown Tyrant", skull: 5, attack: 7, fortitude: 7, faction: "Umbral" },
-  { name: "Tide Oracle", skull: 3, attack: 3, fortitude: 5, faction: "Tide" },
-  { name: "Deep Leviathan", skull: 5, attack: 8, fortitude: 6, faction: "Tide", keywords: ["Piercing"] },
-  { name: "Lunar Ascendant", skull: 4, attack: 5, fortitude: 6, faction: "Lunar" },
+  { name: "Acolyte of Embers", skull: 1, attack: 2, fortitude: 2, faction: "Flame", keywords: ["Berserk"] },
+  { name: "Moonblade Scout", skull: 1, attack: 1, fortitude: 3, faction: "Lunar", keywords: ["Piercing", "Flying"] },
+  { name: "Sanctum Defender", skull: 2, attack: 2, fortitude: 4, faction: "Radiant", keywords: ["Guard"] },
+  { name: "Grave Oath Knight", skull: 2, attack: 3, fortitude: 3, faction: "Umbral", keywords: ["Deathburst"] },
+  { name: "Solar Templar", skull: 3, attack: 4, fortitude: 4, faction: "Radiant", keywords: ["Vanguard"] },
+  { name: "Ashfang Titan", skull: 4, attack: 6, fortitude: 5, faction: "Flame", keywords: ["Piercing", "Shattershield"] },
+  { name: "Night Crown Tyrant", skull: 5, attack: 7, fortitude: 7, faction: "Umbral", keywords: ["Deathburst", "Berserk"] },
+  { name: "Tide Oracle", skull: 3, attack: 3, fortitude: 5, faction: "Tide", keywords: ["Retaliate"] },
+  { name: "Deep Leviathan", skull: 5, attack: 8, fortitude: 6, faction: "Tide", keywords: ["Piercing", "Guard"] },
+  { name: "Lunar Ascendant", skull: 4, attack: 5, fortitude: 6, faction: "Lunar", keywords: ["Flying", "Vanguard"] },
 ];
 
 const MYSTIC_LIBRARY = [

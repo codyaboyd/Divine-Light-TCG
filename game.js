@@ -221,10 +221,33 @@ function calculateStats(hero, ownerIndex = null) {
     ownerIndex === game.activePlayer
       ? 1
       : 0;
+  const berserkAttack = hasKeyword(hero, "Berserk") && hero.damage > 0 ? 2 : 0;
   return {
-    attack: hero.attack + hero.attackMod + envAttack + flameAttack,
+    attack: hero.attack + hero.attackMod + envAttack + flameAttack + berserkAttack,
     maxFortitude: hero.fortitude + hero.fortMod + envFort,
   };
+}
+
+function hasGuardHero(board) {
+  return board.some((hero) => hasKeyword(hero, "Guard"));
+}
+
+function applySummonKeywords(hero) {
+  const notes = [];
+  if (hasKeyword(hero, "Vanguard")) {
+    hero.shielded = true;
+    notes.push("Vanguard granted Shield");
+  }
+  return notes;
+}
+
+function resolveDeathKeywords(hero, owner, opponent) {
+  const notes = [];
+  if (hasKeyword(hero, "Deathburst")) {
+    opponent.vitality -= 1;
+    notes.push(`${hero.name} triggered Deathburst for 1 vitality damage to ${opponent.name}`);
+  }
+  return notes;
 }
 
 function resetFactionTurnFlags(player) {
@@ -403,10 +426,15 @@ function playHero(player, cardId) {
   movedHero.exhausted = true;
   player.board.push(movedHero);
   const gotWard = applyRadiantWardOnSummon(player, movedHero);
+  const summonNotes = applySummonKeywords(movedHero);
   if (player.freeSummonReady && movedHero.skull > 2) {
     player.freeSummonReady = false;
   }
-  setAction(`${player.name} summoned ${movedHero.name}.${gotWard ? " Ward granted." : ""}`);
+  setAction(
+    `${player.name} summoned ${movedHero.name}.` +
+      `${gotWard ? " Ward granted." : ""}` +
+      `${summonNotes.length ? ` ${summonNotes.join(". ")}.` : ""}`
+  );
   render();
   return true;
 }
@@ -435,6 +463,8 @@ function confirmSacrifice(player) {
   for (const hero of sacrificed) {
     moveHeroToGraveyard(player, hero);
   }
+  const opponent = getOpponent();
+  const deathNotes = sacrificed.flatMap((hero) => resolveDeathKeywords(hero, player, opponent));
   const umbralBuffTarget = applyUmbralSacrificeBonus(player);
 
   const heroToPlay = removeCardById(player.hand, game.pendingSacrifice.heroCardId);
@@ -448,11 +478,14 @@ function confirmSacrifice(player) {
   heroToPlay.exhausted = true;
   player.board.push(heroToPlay);
   const gotWard = applyRadiantWardOnSummon(player, heroToPlay);
+  const summonNotes = applySummonKeywords(heroToPlay);
   game.pendingSacrifice = null;
   setAction(
     `${player.name} sacrificed ${skullTotal} skulls and summoned ${heroToPlay.name}.` +
       `${umbralBuffTarget ? ` ${umbralBuffTarget.name} gained +1/+1 from Umbral rite.` : ""}` +
-      `${gotWard ? " Ward granted." : ""}`
+      `${gotWard ? " Ward granted." : ""}` +
+      `${summonNotes.length ? ` ${summonNotes.join(". ")}.` : ""}` +
+      `${deathNotes.length ? ` ${deathNotes.join(". ")}.` : ""}`
   );
   render();
   return true;
@@ -536,7 +569,8 @@ function playMystic(player, cardId) {
     const target = findWeakestHero(opponent.board, 1 - game.activePlayer);
     removeCardById(opponent.board, target.id);
     moveHeroToGraveyard(opponent, target, true);
-    setAction(`${card.name} destroyed ${target.name}.`);
+    const deathNotes = resolveDeathKeywords(target, opponent, player);
+    setAction(`${card.name} destroyed ${target.name}.${deathNotes.length ? ` ${deathNotes.join(". ")}.` : ""}`);
   } else if (card.effect === "forcedDuel") {
     if (player.board.length === 0 || opponent.board.length === 0) {
       player.hand.push(card);
@@ -564,13 +598,18 @@ function playMystic(player, cardId) {
       removeCardById(opponent.board, enemy.id);
       moveHeroToGraveyard(opponent, enemy);
     }
+    const deathNotes = [
+      ...(alliedDefeated ? resolveDeathKeywords(allied, player, opponent) : []),
+      ...(enemyDefeated ? resolveDeathKeywords(enemy, opponent, player) : []),
+    ];
 
     setAction(
       `${card.name} forced ${allied.name} and ${enemy.name} to duel.` +
         ` ${allied.name} took ${Math.min(enemyStats.attack, alliedFortBefore)}.` +
         ` ${enemy.name} took ${Math.min(alliedStats.attack, enemyFortBefore)}.` +
         `${alliedDefeated ? ` ${allied.name} was defeated.` : ""}` +
-        `${enemyDefeated ? ` ${enemy.name} was defeated.` : ""}`
+        `${enemyDefeated ? ` ${enemy.name} was defeated.` : ""}` +
+        `${deathNotes.length ? ` ${deathNotes.join(". ")}.` : ""}`
     );
   } else if (card.effect === "directDamage") {
     opponent.vitality -= 3;
@@ -647,19 +686,27 @@ function attackHero(attackerOwner, defenderOwner, attackerId, targetId) {
   const target = defenderOwner.board.find((h) => h.id === targetId);
   if (!attacker || !target || attacker.exhausted) return;
 
-  if (target.shielded) {
-    target.shielded = false;
-    attacker.exhausted = true;
-    const lunarTarget = triggerLunarReposition(attackerOwner, attacker);
-    setAction(
-      `${target.name}'s shield blocked ${attacker.name}'s attack.` +
-        `${lunarTarget ? ` ${lunarTarget.name} was readied by Lunar tempo.` : ""}`
-    );
+  if (hasGuardHero(defenderOwner.board) && !hasKeyword(target, "Guard") && !hasKeyword(attacker, "Flying")) {
+    setAction("A Guard hero must be targeted first (unless the attacker has Flying).", true);
+    render();
     return;
   }
 
+  if (target.shielded) {
+    target.shielded = false;
+    if (!hasKeyword(attacker, "Shattershield")) {
+      attacker.exhausted = true;
+      const lunarTarget = triggerLunarReposition(attackerOwner, attacker);
+      setAction(
+        `${target.name}'s shield blocked ${attacker.name}'s attack.` +
+          `${lunarTarget ? ` ${lunarTarget.name} was readied by Lunar tempo.` : ""}`
+      );
+      return;
+    }
+  }
+
   const atk = calculateStats(attacker, game.activePlayer).attack;
-  const retaliation = calculateStats(target, 1 - game.activePlayer).attack;
+  const retaliation = calculateStats(target, 1 - game.activePlayer).attack + (hasKeyword(target, "Retaliate") ? 1 : 0);
   const targetStats = calculateStats(target, 1 - game.activePlayer);
   const attackerStats = calculateStats(attacker, game.activePlayer);
   const attackerFortBefore = attackerStats.maxFortitude - attacker.damage;
@@ -686,6 +733,10 @@ function attackHero(attackerOwner, defenderOwner, attackerId, targetId) {
     removeCardById(attackerOwner.board, attacker.id);
     moveHeroToGraveyard(attackerOwner, attacker);
   }
+  const deathNotes = [
+    ...(targetDefeated ? resolveDeathKeywords(target, defenderOwner, attackerOwner) : []),
+    ...(attackerDefeated ? resolveDeathKeywords(attacker, attackerOwner, defenderOwner) : []),
+  ];
 
   const targetDamageTaken = Math.min(atk, targetFortBefore);
   const attackerDamageTaken = Math.min(retaliation, attackerFortBefore);
@@ -694,7 +745,8 @@ function attackHero(attackerOwner, defenderOwner, attackerId, targetId) {
       `${targetDefeated ? ` ${target.name} was defeated.` : ""}` +
       `${attackerDefeated ? ` ${attacker.name} was defeated.` : ""}` +
       `${overflow > 0 ? ` ${overflow} overflow damage hit ${defenderOwner.name}'s vitality.` : ""}` +
-      `${lunarTarget ? ` ${lunarTarget.name} was readied by Lunar tempo.` : ""}`
+      `${lunarTarget ? ` ${lunarTarget.name} was readied by Lunar tempo.` : ""}` +
+      `${deathNotes.length ? ` ${deathNotes.join(". ")}.` : ""}`
   );
 
   checkWin();
@@ -705,6 +757,12 @@ function attackPlayer(attackerOwner, defenderOwner, attackerId) {
   const attacker = attackerOwner.board.find((h) => h.id === attackerId);
   if (!attacker || attacker.exhausted) return;
   const canPierce = hasKeyword(attacker, "Piercing");
+  const canBypassGuard = hasKeyword(attacker, "Flying");
+  if (hasGuardHero(defenderOwner.board) && !canBypassGuard) {
+    setAction("Direct attack is blocked while the opponent controls Guard heroes (unless attacker has Flying).", true);
+    render();
+    return;
+  }
   if (defenderOwner.board.length > 0 && !canPierce) {
     setAction("Direct attack is blocked while the opponent controls heroes (unless attacker has Piercing).", true);
     render();
