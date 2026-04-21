@@ -30,6 +30,7 @@ const game = {
   players: [],
   turn: 0,
   activePlayer: 0,
+  manualDrawUsed: false,
   selectedAttackerId: null,
   pendingSacrifice: null,
   environment: null,
@@ -116,6 +117,7 @@ function serializeGame() {
     players: game.players,
     turn: game.turn,
     activePlayer: game.activePlayer,
+    manualDrawUsed: game.manualDrawUsed,
     selectedAttackerId: game.selectedAttackerId,
     pendingSacrifice: game.pendingSacrifice
       ? {
@@ -133,6 +135,7 @@ function applySnapshot(snapshot) {
   game.players = snapshot.players;
   game.turn = snapshot.turn;
   game.activePlayer = snapshot.activePlayer;
+  game.manualDrawUsed = Boolean(snapshot.manualDrawUsed);
   game.selectedAttackerId = snapshot.selectedAttackerId;
   game.pendingSacrifice = snapshot.pendingSacrifice
     ? {
@@ -256,6 +259,7 @@ function startGame() {
   game.players = [createPlayer("Player 1"), createPlayer("Player 2")];
   game.turn = 1;
   game.activePlayer = 0;
+  game.manualDrawUsed = false;
   game.selectedAttackerId = null;
   game.pendingSacrifice = null;
   game.environment = null;
@@ -268,7 +272,7 @@ function startGame() {
   }
 
   resetExhaustion(game.players[0]);
-  setAction("New duel started. 1-2 skull heroes are free, 3-5 skull heroes require sacrifices unless bypassed by Mystic cards.");
+  setAction("New duel started. 1-2 skull heroes are free, 3-5 skull heroes require sacrifices unless bypassed by Mystic cards. Hero combat now includes retaliation, and Draw can be used once each turn.");
   render();
 }
 
@@ -458,24 +462,41 @@ function attackHero(attackerOwner, defenderOwner, attackerId, targetId) {
   }
 
   const atk = calculateStats(attacker).attack;
+  const retaliation = calculateStats(target).attack;
   const targetStats = calculateStats(target);
+  const attackerStats = calculateStats(attacker);
+  const attackerFortBefore = attackerStats.maxFortitude - attacker.damage;
+  const targetFortBefore = targetStats.maxFortitude - target.damage;
   const currentFort = targetStats.maxFortitude - target.damage;
   const overflow = Math.max(0, atk - currentFort);
 
   target.damage += atk;
+  attacker.damage += retaliation;
   attacker.exhausted = true;
-
-  if (target.damage >= targetStats.maxFortitude) {
-    removeCardById(defenderOwner.board, target.id);
-    moveHeroToGraveyard(defenderOwner, target);
-    setAction(`${attacker.name} defeated ${target.name}${overflow > 0 ? ` and ${overflow} overflow damage hit ${defenderOwner.name}'s vitality.` : "."}`);
-  } else {
-    setAction(`${attacker.name} dealt ${atk} to ${target.name}.`);
-  }
+  const targetDefeated = target.damage >= targetStats.maxFortitude;
+  const attackerDefeated = attacker.damage >= attackerStats.maxFortitude;
 
   if (overflow > 0) {
     defenderOwner.vitality -= overflow;
   }
+
+  if (targetDefeated) {
+    removeCardById(defenderOwner.board, target.id);
+    moveHeroToGraveyard(defenderOwner, target);
+  }
+  if (attackerDefeated) {
+    removeCardById(attackerOwner.board, attacker.id);
+    moveHeroToGraveyard(attackerOwner, attacker);
+  }
+
+  const targetDamageTaken = Math.min(atk, targetFortBefore);
+  const attackerDamageTaken = Math.min(retaliation, attackerFortBefore);
+  setAction(
+    `${attacker.name} dealt ${targetDamageTaken} to ${target.name}, and ${target.name} retaliated for ${attackerDamageTaken}.` +
+      `${targetDefeated ? ` ${target.name} was defeated.` : ""}` +
+      `${attackerDefeated ? ` ${attacker.name} was defeated.` : ""}` +
+      `${overflow > 0 ? ` ${overflow} overflow damage hit ${defenderOwner.name}'s vitality.` : ""}`
+  );
 
   checkWin();
   render();
@@ -493,14 +514,17 @@ function attackPlayer(attackerOwner, defenderOwner, attackerId) {
 }
 
 function checkWin() {
-  for (const p of game.players) {
-    if (p.vitality <= 0) {
-      game.gameOver = true;
-      const winner = game.players.find((x) => x.vitality > 0) || p;
-      setAction(`${winner.name} wins the duel!`, false);
-      ids.actionMessage.className = "win";
-    }
+  const living = game.players.filter((p) => p.vitality > 0);
+  if (living.length === game.players.length) {
+    return;
   }
+  game.gameOver = true;
+  if (living.length === 0) {
+    setAction("The duel ends in a draw!", false);
+  } else {
+    setAction(`${living[0].name} wins the duel!`, false);
+  }
+  ids.actionMessage.className = "win";
 }
 
 function resetExhaustion(player) {
@@ -515,6 +539,7 @@ function endTurn() {
   game.pendingSacrifice = null;
   game.activePlayer = 1 - game.activePlayer;
   game.turn += 1;
+  game.manualDrawUsed = false;
 
   const current = getCurrentPlayer();
   current.freeSummonReady = false;
@@ -558,6 +583,12 @@ function processIntent(intent, fromRemote = false) {
     attackPlayer(current, opponent, game.selectedAttackerId);
     game.selectedAttackerId = null;
   } else if (intent.type === "draw") {
+    if (game.manualDrawUsed) {
+      setAction("You may only use Draw once per turn.", true);
+      render();
+      return;
+    }
+    game.manualDrawUsed = true;
     drawCard(current);
     render();
   } else if (intent.type === "end-turn") {
