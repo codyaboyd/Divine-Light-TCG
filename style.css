@@ -31,12 +31,169 @@ body {
   min-height: 100vh;
   background: radial-gradient(circle at top, #1f2937, var(--bg) 60%);
   color: var(--ink);
+  overflow-x: hidden;
 }
 
 header,
 main {
   width: min(var(--content-max), 96vw);
   margin: 0 auto;
+}
+
+.gameShell {
+  opacity: 0;
+  transform: scale(1.02);
+  filter: blur(12px);
+  pointer-events: none;
+  transition: opacity 700ms ease, transform 700ms ease, filter 700ms ease;
+}
+
+body.gameStarted .gameShell {
+  opacity: 1;
+  transform: scale(1);
+  filter: blur(0);
+  pointer-events: auto;
+}
+
+.startMenu {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  z-index: 15;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 20%, #2c315a 0%, #0e1120 62%);
+  transition: opacity 700ms ease, visibility 700ms ease;
+}
+
+body.gameStarted .startMenu {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.menuBackdrop {
+  position: absolute;
+  inset: -20%;
+  overflow: hidden;
+}
+
+.nebula {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(0.8px);
+  opacity: 0.55;
+  animation: drift 18s ease-in-out infinite alternate;
+}
+
+.orbA {
+  width: min(50vw, 800px);
+  aspect-ratio: 1;
+  background: radial-gradient(circle, rgba(94, 234, 212, 0.48), rgba(94, 234, 212, 0));
+  left: 4%;
+  top: 0;
+}
+
+.orbB {
+  width: min(45vw, 700px);
+  aspect-ratio: 1;
+  background: radial-gradient(circle, rgba(196, 181, 253, 0.52), rgba(196, 181, 253, 0));
+  right: 4%;
+  top: 18%;
+  animation-duration: 21s;
+}
+
+.orbC {
+  width: min(60vw, 900px);
+  aspect-ratio: 1;
+  background: radial-gradient(circle, rgba(250, 204, 21, 0.35), rgba(250, 204, 21, 0));
+  bottom: -8%;
+  left: 20%;
+  animation-duration: 24s;
+}
+
+.gridFx {
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+  background-size: 44px 44px;
+  transform: perspective(500px) rotateX(62deg) translateY(26%);
+  transform-origin: bottom;
+  opacity: 0.12;
+  animation: scan 8s linear infinite;
+}
+
+.menuCard {
+  position: relative;
+  width: min(780px, 92vw);
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  background: linear-gradient(145deg, rgba(20, 24, 40, 0.85), rgba(13, 16, 29, 0.9));
+  box-shadow: 0 0 65px rgba(112, 124, 255, 0.28), inset 0 0 24px rgba(255, 255, 255, 0.08);
+  text-align: center;
+  backdrop-filter: blur(16px);
+  padding: clamp(1.2rem, 3.2vw, 2.8rem);
+  animation: floatCard 5.4s ease-in-out infinite;
+}
+
+.menuKicker {
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #d8e4fb;
+  opacity: 0.8;
+  font-size: 0.78rem;
+}
+
+.menuTitle {
+  font-size: clamp(2.1rem, 6vw, 4.8rem);
+  margin: 0.1em 0 0.14em;
+  line-height: 0.92;
+  background: linear-gradient(180deg, #fff, #9ae5d8 55%, #d3c6ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 5px 35px rgba(154, 229, 216, 0.42);
+}
+
+.menuSubtitle {
+  margin: 0 auto;
+  max-width: 55ch;
+  color: #d2def5;
+}
+
+.menuActions {
+  margin-top: 1.3rem;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.menuBtn {
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 14px;
+  min-height: 3.2rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 250ms ease, border-color 250ms ease;
+}
+
+.menuBtn:hover {
+  transform: translateY(-2px) scale(1.01);
+}
+
+.menuBtn.primary {
+  color: #eefcf8;
+  background: linear-gradient(120deg, #1d8678, #3176cf);
+  box-shadow: 0 10px 35px rgba(26, 114, 255, 0.35);
+}
+
+.menuBtn.ghost {
+  color: #dce4f5;
+  background: rgba(44, 51, 76, 0.58);
+}
+
+body.menuPulse .menuCard {
+  animation: menuPulse 550ms ease;
 }
 
 header {
@@ -195,6 +352,46 @@ textarea {
 
 .warn {
   color: var(--danger);
+}
+
+@keyframes drift {
+  0% {
+    transform: translateY(0) translateX(0) scale(1);
+  }
+  100% {
+    transform: translateY(-5%) translateX(2%) scale(1.08);
+  }
+}
+
+@keyframes floatCard {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes scan {
+  from {
+    transform: perspective(500px) rotateX(62deg) translateY(26%) translateX(0);
+  }
+  to {
+    transform: perspective(500px) rotateX(62deg) translateY(26%) translateX(44px);
+  }
+}
+
+@keyframes menuPulse {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.035);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 /* Landscape phones and short screens */

@@ -19,6 +19,8 @@ const net = {
 };
 
 const ids = {
+  launchGameBtn: document.getElementById("launchGameBtn"),
+  menuPulseBtn: document.getElementById("menuPulseBtn"),
   currentPlayerName: document.getElementById("currentPlayerName"),
   environmentName: document.getElementById("environmentName"),
   actionMessage: document.getElementById("actionMessage"),
@@ -342,6 +344,19 @@ function startGame() {
   resetExhaustion(game.players[0]);
   setAction("New duel started. You may play up to 1 hero and 1 non-hero card (Mystic or Environment) each turn. 1-2 skull heroes are free, 3-5 skull heroes require sacrifices unless bypassed by Mystic cards (3-4 skull only). Direct attacks usually require a clear enemy board unless the attacker has Piercing. Hero combat includes retaliation + overflow, and you draw automatically at the beginning of each turn.");
   render();
+}
+
+function launchGameFromMenu() {
+  document.body.classList.add("gameStarted");
+  startGame();
+}
+
+function pulseMenu() {
+  document.body.classList.remove("menuPulse");
+  window.requestAnimationFrame(() => {
+    document.body.classList.add("menuPulse");
+    window.setTimeout(() => document.body.classList.remove("menuPulse"), 650);
+  });
 }
 
 function getCurrentPlayer() {
@@ -1118,4 +1133,5 @@ ids.setRemoteBtn.addEventListener("click", async () => {
   setNetStatus("Remote description applied. Awaiting connection...");
 });
 
-startGame();
+ids.launchGameBtn.addEventListener("click", launchGameFromMenu);
+ids.menuPulseBtn.addEventListener("click", pulseMenu);

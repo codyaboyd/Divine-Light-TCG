@@ -7,12 +7,31 @@
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <header>
-      <h1>Divine Light PvP Digital TCG</h1>
-      <p>Two-player hotseat battle with Hero, Mystic, and Environment cards.</p>
-    </header>
+    <section id="startMenu" class="startMenu">
+      <div class="menuBackdrop" aria-hidden="true">
+        <span class="nebula orbA"></span>
+        <span class="nebula orbB"></span>
+        <span class="nebula orbC"></span>
+        <span class="gridFx"></span>
+      </div>
+      <div class="menuCard">
+        <p class="menuKicker">DIVINE LIGHT • TACTICAL DUEL SYSTEM</p>
+        <h1 class="menuTitle">Divine Light</h1>
+        <p class="menuSubtitle">Enter an ultra-cinematic PvP battleground and begin your ascension.</p>
+        <div class="menuActions">
+          <button id="launchGameBtn" class="menuBtn primary">Launch Match</button>
+          <button id="menuPulseBtn" class="menuBtn ghost">Pulse Intro</button>
+        </div>
+      </div>
+    </section>
 
-    <main>
+    <div id="gameShell" class="gameShell">
+      <header>
+        <h1>Divine Light PvP Digital TCG</h1>
+        <p>Two-player hotseat battle with Hero, Mystic, and Environment cards.</p>
+      </header>
+
+      <main>
       <section id="statusPanel" class="panel">
         <div class="statusRow">
           <strong>Current Turn:</strong> <span id="currentPlayerName"></span>
@@ -82,7 +101,8 @@
         <button id="endTurnBtn">End Turn</button>
         <button id="resetBtn">New Game</button>
       </section>
-    </main>
+      </main>
+    </div>
 
     <script src="card-roster.js"></script>
     <script src="game.js"></script>
