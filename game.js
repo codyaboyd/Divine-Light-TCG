@@ -238,10 +238,12 @@ function triggerCinematic(effect) {
   }
   fx.activeClass = `fx-${effect}`;
   document.body.classList.add(fx.activeClass);
+  document.documentElement.style.setProperty("--pulse", "1");
   if (fx.timer) window.clearTimeout(fx.timer);
   fx.timer = window.setTimeout(() => {
     if (fx.activeClass) document.body.classList.remove(fx.activeClass);
     fx.activeClass = null;
+    document.documentElement.style.setProperty("--pulse", "0");
   }, effect === "win" ? 950 : 620);
 }
 
@@ -1135,6 +1137,26 @@ function captureFxSnapshot() {
   }
 }
 
+function initializeHighFidelityFx() {
+  const updatePointer = (clientX, clientY) => {
+    const mx = Math.min(1, Math.max(0, clientX / window.innerWidth));
+    const my = Math.min(1, Math.max(0, clientY / window.innerHeight));
+    document.documentElement.style.setProperty("--mx", mx.toFixed(3));
+    document.documentElement.style.setProperty("--my", my.toFixed(3));
+  };
+
+  window.addEventListener("pointermove", (event) => {
+    updatePointer(event.clientX, event.clientY);
+  });
+
+  window.addEventListener("deviceorientation", (event) => {
+    if (typeof event.gamma !== "number" || typeof event.beta !== "number") return;
+    const mx = (event.gamma + 90) / 180;
+    const my = (event.beta + 180) / 360;
+    updatePointer(mx * window.innerWidth, my * window.innerHeight);
+  });
+}
+
 document.body.addEventListener("click", (event) => {
   const target = event.target;
   if (!(target instanceof HTMLElement)) return;
@@ -1225,3 +1247,4 @@ ids.setRemoteBtn.addEventListener("click", async () => {
 
 ids.launchGameBtn.addEventListener("click", launchGameFromMenu);
 ids.menuPulseBtn.addEventListener("click", pulseMenu);
+initializeHighFidelityFx();

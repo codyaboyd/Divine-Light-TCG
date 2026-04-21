@@ -16,6 +16,9 @@
   --space-3: clamp(0.85rem, 1vw, 1.4rem);
   --radius: clamp(10px, 0.9vw, 16px);
   --font-base: clamp(14px, 0.38vw + 12px, 22px);
+  --mx: 0.5;
+  --my: 0.5;
+  --pulse: 0;
 }
 
 * {
@@ -32,6 +35,76 @@ body {
   background: radial-gradient(circle at top, #3a2759, var(--bg) 60%);
   color: var(--ink);
   overflow-x: hidden;
+  position: relative;
+}
+
+.renderStack {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.renderStack span {
+  position: absolute;
+  inset: -25%;
+}
+
+.volumetricRays {
+  background:
+    conic-gradient(
+      from calc(200deg + (var(--mx) - 0.5) * 35deg) at calc(50% + (var(--mx) - 0.5) * 35%) calc(26% + (var(--my) - 0.5) * 20%),
+      rgba(255, 255, 255, 0) 0deg,
+      rgba(247, 227, 163, 0.08) 22deg,
+      rgba(255, 255, 255, 0) 60deg,
+      rgba(110, 235, 214, 0.05) 96deg,
+      rgba(255, 255, 255, 0) 160deg,
+      rgba(175, 132, 255, 0.08) 210deg,
+      rgba(255, 255, 255, 0) 275deg,
+      rgba(247, 227, 163, 0.06) 332deg,
+      rgba(255, 255, 255, 0) 360deg
+    );
+  filter: blur(1.2px) saturate(120%);
+  animation: rayOrbit 18s linear infinite;
+}
+
+.starField {
+  background-image:
+    radial-gradient(circle at 15% 20%, rgba(255, 255, 255, 0.35) 0.7px, transparent 1px),
+    radial-gradient(circle at 84% 32%, rgba(255, 255, 255, 0.28) 1px, transparent 1.5px),
+    radial-gradient(circle at 40% 72%, rgba(255, 255, 255, 0.22) 1px, transparent 1.4px),
+    radial-gradient(circle at 64% 15%, rgba(113, 219, 255, 0.4) 1px, transparent 1.8px),
+    radial-gradient(circle at 28% 84%, rgba(184, 145, 255, 0.35) 0.9px, transparent 1.7px);
+  background-size: 260px 260px, 330px 330px, 400px 400px, 520px 520px, 680px 680px;
+  background-position: 0 0, 30px 80px, 90px 10px, 0 0, 70px 120px;
+  mix-blend-mode: screen;
+  opacity: calc(0.23 + var(--pulse) * 0.2);
+  transform: translate3d(calc((var(--mx) - 0.5) * 24px), calc((var(--my) - 0.5) * 24px), 0);
+  transition: transform 220ms ease-out, opacity 240ms ease;
+}
+
+.filmGrain {
+  inset: 0;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.1) 0.6px, transparent 0.7px);
+  background-size: 3px 3px;
+  opacity: 0.06;
+  animation: grainShift 430ms steps(2, end) infinite;
+}
+
+.chromaticVignette {
+  inset: 0;
+  background:
+    radial-gradient(circle at center, transparent 36%, rgba(12, 8, 20, 0.8) 100%),
+    linear-gradient(102deg, rgba(255, 72, 72, 0.06), rgba(86, 198, 255, 0.04), rgba(255, 154, 94, 0.06));
+  mix-blend-mode: screen;
+  opacity: 0.38;
+}
+
+.startMenu,
+.gameShell {
+  position: relative;
+  z-index: 3;
 }
 
 .cinematicFx {
@@ -195,6 +268,34 @@ body.gameStarted .startMenu {
   backdrop-filter: blur(16px);
   padding: clamp(1.2rem, 3.2vw, 2.8rem);
   animation: floatCard 5.4s ease-in-out infinite;
+  isolation: isolate;
+}
+
+.menuCard::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.42), rgba(139, 92, 246, 0), rgba(45, 212, 191, 0.34));
+  opacity: 0.45;
+  z-index: -1;
+  filter: blur(8px);
+}
+
+.qualitySeal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.8rem;
+  padding: 0.28rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  letter-spacing: 0.14em;
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: #f7e8ba;
+  background: linear-gradient(90deg, rgba(248, 217, 111, 0.2), rgba(182, 129, 255, 0.2));
+  box-shadow: 0 0 18px rgba(248, 217, 111, 0.22);
 }
 
 .menuKicker {
@@ -323,7 +424,8 @@ p {
   gap: 0.35rem;
   position: relative;
   overflow: hidden;
-  transition: transform 240ms ease, border-color 240ms ease, box-shadow 240ms ease;
+  transition: transform 240ms ease, border-color 240ms ease, box-shadow 240ms ease, filter 220ms ease;
+  transform-style: preserve-3d;
 }
 
 .card::after {
@@ -336,9 +438,10 @@ p {
 }
 
 .card:hover {
-  transform: translateY(-2px);
+  transform: perspective(900px) translateY(-3px) rotateX(calc((0.5 - var(--my)) * 4deg)) rotateY(calc((var(--mx) - 0.5) * 4deg));
   border-color: #72efd3;
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.32);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.42), 0 0 18px rgba(114, 239, 211, 0.2);
+  filter: saturate(115%);
 }
 
 .card.entering {
@@ -398,6 +501,7 @@ textarea {
   object-fit: cover;
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.12);
+  filter: contrast(108%) saturate(112%);
 }
 
 .hero {
@@ -506,6 +610,30 @@ body.fx-win .fxSpark {
   }
   100% {
     transform: translateY(-5%) translateX(2%) scale(1.08);
+  }
+}
+
+@keyframes rayOrbit {
+  from {
+    transform: rotate(0deg) scale(1);
+  }
+  to {
+    transform: rotate(360deg) scale(1.05);
+  }
+}
+
+@keyframes grainShift {
+  0% {
+    transform: translate(0, 0);
+  }
+  33% {
+    transform: translate(-1px, 1px);
+  }
+  66% {
+    transform: translate(1px, -1px);
+  }
+  100% {
+    transform: translate(0, 0);
   }
 }
 
