@@ -16,6 +16,8 @@ A lightweight JavaScript digital trading card battle game with local hotseat and
   - Free 3-4 skull summon (no sacrifice)
   - Revival from graveyard
   - Enemy debuff and targeted removal
+  - Forced duels that break board parity
+  - Limited direct vitality damage
   - Fortitude healing with draw/discard filtering
   - Graveyard denial and environment refresh
 - **Environment cards**:
@@ -27,7 +29,7 @@ A lightweight JavaScript digital trading card battle game with local hotseat and
   - Players start with vitality.
   - Overkill damage to a hero spills over to player vitality.
 - **Combat pacing rules for balance**:
-  - Direct attacks can only be made when the defending player controls no heroes.
+  - Direct attacks are usually blocked by defenders, but **Piercing** heroes can push reduced direct damage through.
   - Free summon effects cannot bypass sacrifice costs for 5-skull heroes.
 - **Online PvP over WebRTC**:
   - Host/join modes with manual SDP exchange (copy/paste).
@@ -59,6 +61,8 @@ A lightweight JavaScript digital trading card battle game with local hotseat and
 #### Heroes
 - Have **Skulls** (cost/rank), **Attack**, **Fortitude**, and **Faction**.
 - Enter play **exhausted** (cannot attack immediately that turn).
+- Some heroes have **Keywords**:
+  - **Piercing:** this hero can directly attack vitality even if enemy heroes are present (damage is halved, minimum 1).
 
 #### Mystics
 Mystics are cast from hand, then go to graveyard after resolving:
@@ -68,6 +72,8 @@ Mystics are cast from hand, then go to graveyard after resolving:
 - **Soul Recall (revive):** Revives one hero from your graveyard to your battlefield (if space is available).
 - **Null Hex (debuff):** Enemy hero with highest Attack gets -2 Attack and becomes exhausted.
 - **Sever Thread (removal):** Destroys the weakest enemy hero.
+- **Blood Oath Challenge (forced duel):** Highest-Attack allied hero and enemy hero immediately duel.
+- **Cinder Volley (direct damage):** Deals 3 direct vitality damage to the enemy player.
 - **Wellspring Rite (heal/filter):** Heal 3 damage from your most damaged allied hero, then draw 1 and discard 1.
 - **Rift Collapse (grave deny/environment):** Banish up to two enemy heroes from graveyard, then replace the environment from your deck (or clear it).
 
@@ -136,7 +142,8 @@ At **end turn**:
   - No combat damage is exchanged.
 
 #### Direct attacks
-- You can attack the opposing player directly **only if they control no heroes**.
+- Normally, you can attack the opposing player directly **only if they control no heroes**.
+- Exception: heroes with **Piercing** may still attack directly through defenders for half damage (minimum 1).
 
 #### Overflow damage
 - If attack damage exceeds a target hero's remaining fortitude, excess damage is dealt to the defending player's Vitality.

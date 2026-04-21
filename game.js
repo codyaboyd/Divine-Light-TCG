@@ -268,6 +268,10 @@ function triggerLunarReposition(attackerOwner, attacker) {
   return target;
 }
 
+function hasKeyword(hero, keyword) {
+  return Boolean(hero) && Array.isArray(hero.keywords) && hero.keywords.includes(keyword);
+}
+
 function drawCard(player) {
   if (player.deck.length === 0) {
     setAction(`${player.name} cannot draw (deck empty).`, true);
@@ -301,7 +305,7 @@ function startGame() {
   }
 
   resetExhaustion(game.players[0]);
-  setAction("New duel started. You may play up to 1 hero and 1 non-hero card (Mystic or Environment) each turn. 1-2 skull heroes are free, 3-5 skull heroes require sacrifices unless bypassed by Mystic cards (3-4 skull only). Direct attacks require a clear enemy board. Hero combat includes retaliation, and Draw can be used once each turn.");
+  setAction("New duel started. You may play up to 1 hero and 1 non-hero card (Mystic or Environment) each turn. 1-2 skull heroes are free, 3-5 skull heroes require sacrifices unless bypassed by Mystic cards (3-4 skull only). Direct attacks usually require a clear enemy board unless the attacker has Piercing. Hero combat includes retaliation + overflow, and Draw can be used once each turn.");
   render();
 }
 
@@ -538,6 +542,45 @@ function playMystic(player, cardId) {
     removeCardById(opponent.board, target.id);
     moveHeroToGraveyard(opponent, target, true);
     setAction(`${card.name} destroyed ${target.name}.`);
+  } else if (card.effect === "forcedDuel") {
+    if (player.board.length === 0 || opponent.board.length === 0) {
+      player.hand.push(card);
+      setAction("Forced duel requires both players to control at least one hero.", true);
+      return false;
+    }
+
+    const allied = findHighestAttackHero(player.board, game.activePlayer);
+    const enemy = findHighestAttackHero(opponent.board, 1 - game.activePlayer);
+    const alliedStats = calculateStats(allied, game.activePlayer);
+    const enemyStats = calculateStats(enemy, 1 - game.activePlayer);
+    const alliedFortBefore = alliedStats.maxFortitude - allied.damage;
+    const enemyFortBefore = enemyStats.maxFortitude - enemy.damage;
+
+    enemy.damage += alliedStats.attack;
+    allied.damage += enemyStats.attack;
+
+    const alliedDefeated = allied.damage >= alliedStats.maxFortitude;
+    const enemyDefeated = enemy.damage >= enemyStats.maxFortitude;
+    if (alliedDefeated) {
+      removeCardById(player.board, allied.id);
+      moveHeroToGraveyard(player, allied);
+    }
+    if (enemyDefeated) {
+      removeCardById(opponent.board, enemy.id);
+      moveHeroToGraveyard(opponent, enemy);
+    }
+
+    setAction(
+      `${card.name} forced ${allied.name} and ${enemy.name} to duel.` +
+        ` ${allied.name} took ${Math.min(enemyStats.attack, alliedFortBefore)}.` +
+        ` ${enemy.name} took ${Math.min(alliedStats.attack, enemyFortBefore)}.` +
+        `${alliedDefeated ? ` ${allied.name} was defeated.` : ""}` +
+        `${enemyDefeated ? ` ${enemy.name} was defeated.` : ""}`
+    );
+  } else if (card.effect === "directDamage") {
+    opponent.vitality -= 3;
+    setAction(`${card.name} hit ${opponent.name} for 3 direct vitality damage.`);
+    checkWin();
   } else if (card.effect === "healFilter") {
     const healTarget = findMostDamagedHero(player.board, game.activePlayer);
     let healText = "";
@@ -666,17 +709,20 @@ function attackHero(attackerOwner, defenderOwner, attackerId, targetId) {
 function attackPlayer(attackerOwner, defenderOwner, attackerId) {
   const attacker = attackerOwner.board.find((h) => h.id === attackerId);
   if (!attacker || attacker.exhausted) return;
-  if (defenderOwner.board.length > 0) {
-    setAction("Direct attack is blocked while the opponent controls heroes.", true);
+  const canPierce = hasKeyword(attacker, "Piercing");
+  if (defenderOwner.board.length > 0 && !canPierce) {
+    setAction("Direct attack is blocked while the opponent controls heroes (unless attacker has Piercing).", true);
     render();
     return;
   }
   const atk = calculateStats(attacker, game.activePlayer).attack;
-  defenderOwner.vitality -= atk;
+  const directDamage = defenderOwner.board.length > 0 ? Math.max(1, Math.floor(atk / 2)) : atk;
+  defenderOwner.vitality -= directDamage;
   attacker.exhausted = true;
   const lunarTarget = triggerLunarReposition(attackerOwner, attacker);
   setAction(
-    `${attacker.name} attacked directly for ${atk} vitality damage.` +
+    `${attacker.name} attacked directly for ${directDamage} vitality damage.` +
+      `${defenderOwner.board.length > 0 ? " Piercing reduced the damage through defenders." : ""}` +
       `${lunarTarget ? ` ${lunarTarget.name} was readied by Lunar tempo.` : ""}`
   );
   checkWin();
@@ -811,7 +857,8 @@ function renderHandCard(card, owner, isCurrent) {
   const canPlay = isCurrent && canLocalTakeTurnActions() && canLocalControlPlayer(owner) && !game.gameOver;
   let extra = "";
   if (card.type === "hero") {
-    extra = `Skulls: ${card.skull}<br/>ATK ${card.attack} / FORT ${card.fortitude}<br/>Faction: ${card.faction}`;
+    const keywords = card.keywords && card.keywords.length ? `<br/>Keywords: ${card.keywords.join(", ")}` : "";
+    extra = `Skulls: ${card.skull}<br/>ATK ${card.attack} / FORT ${card.fortitude}<br/>Faction: ${card.faction}${keywords}`;
   } else if (card.type === "mystic") {
     extra = card.text;
   } else {
@@ -845,6 +892,7 @@ function renderBoardHero(hero, ownerIndex, isCurrent, enemyTargetable) {
     `<span>Skulls: ${hero.skull} | ${hero.faction}</span>`,
     `<span>ATK ${stats.attack} / FORT ${currentFortitude}/${stats.maxFortitude}</span>`,
     `<span>${hero.exhausted ? "Exhausted" : "Ready"}${hero.shielded ? " | Shielded" : ""}</span>`,
+    `${hero.keywords && hero.keywords.length ? `<span>Keywords: ${hero.keywords.join(", ")}</span>` : ""}`,
   ];
 
   if (isCurrent && canLocalTakeTurnActions() && canLocalControlPlayer(ownerIndex) && !game.gameOver) {
@@ -892,7 +940,8 @@ function renderPlayer(index) {
     canLocalTakeTurnActions() &&
     canLocalControlPlayer(index) &&
     game.selectedAttackerId &&
-    game.players[1 - index].board.length === 0
+    (game.players[1 - index].board.length === 0 ||
+      hasKeyword(player.board.find((hero) => hero.id === game.selectedAttackerId), "Piercing"))
       ? `<div class="card"><strong>Direct Attack</strong><button data-action="target-player" data-owner="${index}">Hit Enemy Vitality</button></div>`
       : "");
 
