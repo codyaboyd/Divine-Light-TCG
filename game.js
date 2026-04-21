@@ -244,7 +244,7 @@ function startGame() {
   }
 
   resetExhaustion(game.players[0]);
-  setAction("New duel started. 1-2 skull heroes are free, 3-5 skull heroes require sacrifices unless bypassed by Mystic cards. Hero combat now includes retaliation, and Draw can be used once each turn.");
+  setAction("New duel started. 1-2 skull heroes are free, 3-5 skull heroes require sacrifices unless bypassed by Mystic cards (3-4 skull only). Direct attacks require a clear enemy board. Hero combat includes retaliation, and Draw can be used once each turn.");
   render();
 }
 
@@ -276,8 +276,14 @@ function canPlayHero(player, hero) {
   if (player.board.length >= 5) {
     return { ok: false, reason: "Battlefield is full (max 5 heroes)." };
   }
-  if (hero.skull <= 2 || player.freeSummonReady) {
+  if (hero.skull <= 2) {
     return { ok: true };
+  }
+  if (player.freeSummonReady && hero.skull <= 4) {
+    return { ok: true };
+  }
+  if (player.freeSummonReady && hero.skull >= 5) {
+    return { ok: false, reason: "Free Summon can only bypass sacrifice for 3-4 skull heroes." };
   }
   return { ok: true, needsSacrifice: true };
 }
@@ -380,7 +386,7 @@ function playMystic(player, cardId) {
     setAction(`${card.name} boosted ${target.name} (+2/+2).`);
   } else if (card.effect === "freeSummon") {
     player.freeSummonReady = true;
-    setAction(`${player.name} can summon one 3-5 skull hero this turn with no sacrifice.`);
+    setAction(`${player.name} can summon one 3-4 skull hero this turn with no sacrifice.`);
   } else if (card.effect === "shield") {
     if (player.board.length === 0) {
       player.hand.push(card);
@@ -477,6 +483,11 @@ function attackHero(attackerOwner, defenderOwner, attackerId, targetId) {
 function attackPlayer(attackerOwner, defenderOwner, attackerId) {
   const attacker = attackerOwner.board.find((h) => h.id === attackerId);
   if (!attacker || attacker.exhausted) return;
+  if (defenderOwner.board.length > 0) {
+    setAction("Direct attack is blocked while the opponent controls heroes.", true);
+    render();
+    return;
+  }
   const atk = calculateStats(attacker).attack;
   defenderOwner.vitality -= atk;
   attacker.exhausted = true;
@@ -670,7 +681,11 @@ function renderPlayer(index) {
 
   board.innerHTML =
     player.board.map((hero) => renderBoardHero(hero, index, isCurrent, enemyTargetable)).join("") +
-    (isCurrent && canLocalTakeTurnActions() && canLocalControlPlayer(index) && game.selectedAttackerId
+    (isCurrent &&
+    canLocalTakeTurnActions() &&
+    canLocalControlPlayer(index) &&
+    game.selectedAttackerId &&
+    game.players[1 - index].board.length === 0
       ? `<div class="card"><strong>Direct Attack</strong><button data-action="target-player" data-owner="${index}">Hit Enemy Vitality</button></div>`
       : "");
 

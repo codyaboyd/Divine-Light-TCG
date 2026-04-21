@@ -10,7 +10,7 @@ A lightweight JavaScript digital trading card battle game with local hotseat and
   - 3-5 skull heroes require sacrificing heroes whose skull total meets or exceeds the card's skull cost.
 - **Mystic cards** with effects:
   - Stat boost
-  - Free high-skull summon (no sacrifice)
+  - Free 3-4 skull summon (no sacrifice)
   - Shield against one attack
   - Revival from graveyard
 - **Environment cards**:
@@ -20,6 +20,9 @@ A lightweight JavaScript digital trading card battle game with local hotseat and
 - **Vitality and overflow damage**:
   - Players start with vitality.
   - Overkill damage to a hero spills over to player vitality.
+- **Combat pacing rules for balance**:
+  - Direct attacks can only be made when the defending player controls no heroes.
+  - Free summon effects cannot bypass sacrifice costs for 5-skull heroes.
 - **Online PvP over WebRTC**:
   - Host/join modes with manual SDP exchange (copy/paste).
   - Peer-to-peer sync using a data channel (host-authoritative game state).
