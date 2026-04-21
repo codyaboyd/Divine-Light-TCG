@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Divine Light PvP TCG</title>
+    <title>Mythos Ascendant PvP TCG</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
@@ -21,20 +21,20 @@
         <span class="gridFx"></span>
       </div>
       <div class="menuCard">
-        <p class="menuKicker">DIVINE LIGHT • TACTICAL DUEL SYSTEM</p>
-        <h1 class="menuTitle">Divine Light</h1>
-        <p class="menuSubtitle">Enter an ultra-cinematic PvP battleground and begin your ascension.</p>
+        <p class="menuKicker">MYTHOS ASCENDANT • WORLD PANTHEON DUEL SYSTEM</p>
+        <h1 class="menuTitle">Mythos Ascendant</h1>
+        <p class="menuSubtitle">Command gods and mythical creatures from world mythologies in a cinematic PvP clash.</p>
         <div class="menuActions">
-          <button id="launchGameBtn" class="menuBtn primary">Launch Match</button>
-          <button id="menuPulseBtn" class="menuBtn ghost">Pulse Intro</button>
+          <button id="launchGameBtn" class="menuBtn primary">Invoke Match</button>
+          <button id="menuPulseBtn" class="menuBtn ghost">Call Thunder</button>
         </div>
       </div>
     </section>
 
     <div id="gameShell" class="gameShell">
       <header>
-        <h1>Divine Light PvP Digital TCG</h1>
-        <p>Two-player hotseat battle with Hero, Mystic, and Environment cards.</p>
+        <h1>Mythos Ascendant PvP Digital TCG</h1>
+        <p>Two-player hotseat battle with Deity, Relic, and Realm cards inspired by mythologies worldwide.</p>
       </header>
       <div id="turnBanner" class="turnBanner" aria-live="polite"></div>
 
@@ -44,21 +44,21 @@
           <strong>Current Turn:</strong> <span id="currentPlayerName"></span>
         </div>
         <div class="statusRow">
-          <strong>Environment:</strong> <span id="environmentName">None</span>
+          <strong>Realm:</strong> <span id="environmentName">None</span>
         </div>
         <div class="statusRow">
-          <strong>Action:</strong> <span id="actionMessage">Start by playing cards and ending your turn.</span>
+          <strong>Action:</strong> <span id="actionMessage">Begin by invoking your deities and ending your turn.</span>
         </div>
       </section>
 
       <section id="netPanel" class="panel">
-        <h2>Online PvP (WebRTC)</h2>
+        <h2>Online Pantheon PvP (WebRTC)</h2>
         <div class="netRow">
           <label for="netMode">Mode</label>
           <select id="netMode">
-            <option value="local">Local Hotseat</option>
-            <option value="host">Host Match</option>
-            <option value="guest">Join Match</option>
+            <option value="local">Local Council</option>
+            <option value="host">Host Conclave</option>
+            <option value="guest">Join Conclave</option>
           </select>
           <button id="applyNetModeBtn">Apply Mode</button>
           <strong>Status:</strong> <span id="netStatus">Local mode</span>
@@ -83,9 +83,9 @@
             <span>Graveyard: <strong id="player0Graveyard"></strong></span>
             <span>Banished: <strong id="player0Banished"></strong></span>
           </div>
-          <h3>Battlefield (max 5 heroes)</h3>
+          <h3>Battlefield (max 5 deities)</h3>
           <div class="zone" id="player0Board"></div>
-          <h3>Hand</h3>
+          <h3>Pantheon Hand</h3>
           <div class="zone" id="player0Hand"></div>
         </article>
 
@@ -97,16 +97,16 @@
             <span>Graveyard: <strong id="player1Graveyard"></strong></span>
             <span>Banished: <strong id="player1Banished"></strong></span>
           </div>
-          <h3>Battlefield (max 5 heroes)</h3>
+          <h3>Battlefield (max 5 deities)</h3>
           <div class="zone" id="player1Board"></div>
-          <h3>Hand</h3>
+          <h3>Pantheon Hand</h3>
           <div class="zone" id="player1Hand"></div>
         </article>
       </section>
 
       <section class="panel controls">
         <button id="endTurnBtn">End Turn</button>
-        <button id="resetBtn">New Game</button>
+        <button id="resetBtn">New Prophecy</button>
       </section>
       </main>
     </div>
