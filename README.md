@@ -112,7 +112,6 @@ These faction hooks are additive with Environment buffs and are intended to defi
 On your turn you can:
 - Play up to **one Hero** and up to **one non-Hero** card.
 - Attack with ready heroes.
-- Draw manually once.
 - End turn.
 
 At **end turn**:
@@ -124,7 +123,6 @@ At **end turn**:
 ### 7) Drawing Cards
 - Each player draws 5 at game start.
 - At the start of each player's turn (after turn passes), they draw 1 automatically.
-- There is a **Draw button** that can be used **once per turn** for an additional draw.
 
 ### 8) Combat Rules
 
