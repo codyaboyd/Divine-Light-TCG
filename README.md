@@ -28,6 +28,113 @@ A lightweight JavaScript digital trading card battle game with local hotseat and
   - Peer-to-peer sync using a data channel (host-authoritative game state).
   - Opponent hand is hidden during online matches.
 
+## Detailed Rules
+
+### 1) Objective
+- Reduce the opponent's **Vitality** to 0.
+- Each player starts at **30 Vitality**.
+- If both players drop to 0 or less at the same time, the duel is a draw.
+
+### 2) Deck and Starting Setup
+- Each player's deck is generated with:
+  - **16 Hero cards**
+  - **8 Mystic cards**
+  - **5 Environment cards**
+- At game start, both players draw **5 cards**.
+- There is no mulligan system.
+
+### 3) Board, Hand, and Limits
+- **Battlefield limit:** up to **5 heroes** per player.
+- **Hand limit:** up to **10 cards**.
+- If your deck is empty, you cannot draw.
+
+### 4) Card Types
+
+#### Heroes
+- Have **Skulls** (cost/rank), **Attack**, **Fortitude**, and **Faction**.
+- Enter play **exhausted** (cannot attack immediately that turn).
+
+#### Mystics
+Mystics are cast from hand, then go to graveyard after resolving:
+- **Runic Surge (boost):** Gives an allied hero +2 Attack and +2 Fortitude.
+- **Forbidden Gate (free summon):** Lets you summon one 3-4 skull hero this turn without sacrifice.
+- **Aegis Veil (shield):** Gives one allied hero a one-time shield against the next incoming attack.
+- **Soul Recall (revive):** Revives one hero from your graveyard to your battlefield (if space is available).
+
+#### Environments
+- Only **one** environment exists globally.
+- Playing a new environment replaces the current one.
+- Environment buffs apply to matching faction heroes: **+1 Attack / +1 Fortitude**.
+
+### 5) Summoning and Sacrifice Rules
+- **1-2 skull heroes:** free summon (no sacrifice needed).
+- **3-5 skull heroes:** require sacrifice unless bypassed by a free-summon effect.
+- To sacrifice:
+  - Select allied heroes on your board.
+  - Total selected skulls must be **at least** the summoned hero's skull value.
+  - Selected heroes are moved to your graveyard.
+- **Forbidden Gate restriction:**
+  - Can bypass sacrifice only for **3-4 skull** heroes.
+  - **Cannot** bypass sacrifice for **5-skull** heroes.
+- Free summon status expires if unused by end of turn.
+
+### 6) Turn Structure
+On your turn you can play cards, attack, draw manually once, then end turn.
+
+At **end turn**:
+1. Active player switches.
+2. New active player's heroes are refreshed (exhaustion removed).
+3. New active player draws **1 card**.
+4. New turn begins.
+
+### 7) Drawing Cards
+- Each player draws 5 at game start.
+- At the start of each player's turn (after turn passes), they draw 1 automatically.
+- There is a **Draw button** that can be used **once per turn** for an additional draw.
+
+### 8) Combat Rules
+
+#### Attacking heroes
+- An attacker must be unexhausted.
+- Hero combat is simultaneous:
+  - Attacker deals damage to target.
+  - Target retaliates with its Attack.
+- Both units can be defeated in the same battle.
+
+#### Shield interaction
+- If the defender is shielded, the attack is fully blocked:
+  - Shield is removed.
+  - Attacker still becomes exhausted.
+  - No combat damage is exchanged.
+
+#### Direct attacks
+- You can attack the opposing player directly **only if they control no heroes**.
+
+#### Overflow damage
+- If attack damage exceeds a target hero's remaining fortitude, excess damage is dealt to the defending player's Vitality.
+
+### 9) Damage and Defeat
+- Heroes track accumulated damage.
+- A hero is defeated when damage is greater than or equal to its current max fortitude.
+- Defeated heroes are sent to graveyard.
+
+### 10) Graveyard and Revival
+- Sacrificed heroes and defeated cards go to graveyard.
+- **Soul Recall** revives the top hero in graveyard order to the battlefield:
+  - Revived hero enters exhausted.
+  - Revived hero has no damage.
+  - Revived hero is not shielded.
+
+### 11) Online PvP Rules (WebRTC)
+- Host is authoritative for game state.
+- Guest sends intents (play card, attack, etc.) to host.
+- Host validates actions and broadcasts the updated state.
+- In online mode:
+  - Host controls Player 1.
+  - Guest controls Player 2.
+  - You can only act on your own turn.
+  - Opponent hand contents are hidden.
+
 ## Run
 
 Open `index.html` in any modern browser.
