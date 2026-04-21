@@ -1,6 +1,6 @@
 # Mythos Ascendant PvP Digital TCG
 
-A lightweight JavaScript digital trading card battle game where gods and mythical creatures from world mythologies clash in local hotseat or online WebRTC PvP.
+A lightweight JavaScript digital trading card battle game where gods and mythical creatures from world mythologies clash in local hotseat, single-player vs PC, or online WebRTC PvP.
 
 ## Features
 
@@ -24,6 +24,7 @@ A lightweight JavaScript digital trading card battle game where gods and mythica
   - **Naga** (revival loop)
   - **Yokai** (tempo repositioning)
 - **Vitality and overflow damage** support, plus combat keyword interactions.
+- **Single-player mode vs PC** with random decks and three AI difficulties (Easy, Medium, Hard).
 - **Online PvP over WebRTC** with host/join and host-authoritative state sync.
 
 ## Run
