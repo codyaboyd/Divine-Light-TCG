@@ -1,6 +1,6 @@
-# Mythos Ascendant PvP Digital TCG
+# Divine Light PvP Digital TCG
 
-Mythos Ascendant is a fast, browser-based digital trading card game where gods and mythical beings from multiple pantheons battle in tactical duels.
+Divine Light is a fast, browser-based digital trading card game where gods and mythical beings from multiple pantheons battle in tactical duels.
 
 You can play:
 - **Local hotseat** (2 players on one device)
