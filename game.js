@@ -201,6 +201,7 @@ function createPlayer(name) {
     hand: [],
     board: [],
     graveyard: [],
+    banished: [],
     freeSummonReady: false,
     radiantWardUsed: false,
     umbralSacrificeUsed: false,
@@ -328,6 +329,40 @@ function moveHeroToGraveyard(owner, hero, pushTop = false) {
   }
 }
 
+function findMostDamagedHero(board, ownerIndex = null) {
+  if (board.length === 0) return null;
+  const scored = board
+    .map((hero) => {
+      const stats = calculateStats(hero, ownerIndex);
+      const damageTaken = Math.min(hero.damage, stats.maxFortitude);
+      return { hero, damageTaken };
+    })
+    .sort((a, b) => b.damageTaken - a.damageTaken || a.hero.skull - b.hero.skull);
+  return scored[0].hero;
+}
+
+function findWeakestHero(board, ownerIndex = null) {
+  if (board.length === 0) return null;
+  const scored = board
+    .map((hero) => {
+      const stats = calculateStats(hero, ownerIndex);
+      return { hero, currentFort: stats.maxFortitude - hero.damage };
+    })
+    .sort((a, b) => a.currentFort - b.currentFort || a.hero.skull - b.hero.skull);
+  return scored[0].hero;
+}
+
+function findHighestAttackHero(board, ownerIndex = null) {
+  if (board.length === 0) return null;
+  const scored = board
+    .map((hero) => {
+      const stats = calculateStats(hero, ownerIndex);
+      return { hero, attack: stats.attack };
+    })
+    .sort((a, b) => b.attack - a.attack || b.hero.skull - a.hero.skull);
+  return scored[0].hero;
+}
+
 function canPlayHero(player, hero) {
   if (player.board.length >= 5) {
     return { ok: false, reason: "Battlefield is full (max 5 heroes)." };
@@ -438,6 +473,7 @@ function toggleSacrificeSelection(cardId) {
 function playMystic(player, cardId) {
   const card = removeCardById(player.hand, cardId);
   if (!card) return;
+  const opponent = getOpponent();
 
   if (card.effect === "boost") {
     if (player.board.length === 0) {
@@ -445,7 +481,7 @@ function playMystic(player, cardId) {
       setAction("Need an allied hero on board to boost.", true);
       return false;
     }
-    const target = player.board[0];
+    const target = findWeakestHero(player.board, game.activePlayer);
     target.attackMod += 2;
     target.fortMod += 2;
     setAction(`${card.name} boosted ${target.name} (+2/+2).`);
@@ -458,7 +494,7 @@ function playMystic(player, cardId) {
       setAction("Need an allied hero on board to shield.", true);
       return false;
     }
-    const target = player.board[0];
+    const target = findMostDamagedHero(player.board, game.activePlayer);
     target.shielded = true;
     setAction(`${target.name} is shielded against the next incoming attack.`);
   } else if (card.effect === "revive") {
@@ -482,6 +518,76 @@ function playMystic(player, cardId) {
       player.tideReviveUsed = true;
     }
     setAction(`${player.name} revived ${revived.name}.${tideReady ? " It entered ready (Tide identity)." : ""}`);
+  } else if (card.effect === "debuff") {
+    if (opponent.board.length === 0) {
+      player.hand.push(card);
+      setAction("No enemy hero to debuff.", true);
+      return false;
+    }
+    const target = findHighestAttackHero(opponent.board, 1 - game.activePlayer);
+    target.attackMod -= 2;
+    target.exhausted = true;
+    setAction(`${card.name} weakened ${target.name} (-2 Attack) and exhausted it.`);
+  } else if (card.effect === "removal") {
+    if (opponent.board.length === 0) {
+      player.hand.push(card);
+      setAction("No enemy hero to remove.", true);
+      return false;
+    }
+    const target = findWeakestHero(opponent.board, 1 - game.activePlayer);
+    removeCardById(opponent.board, target.id);
+    moveHeroToGraveyard(opponent, target, true);
+    setAction(`${card.name} destroyed ${target.name}.`);
+  } else if (card.effect === "healFilter") {
+    const healTarget = findMostDamagedHero(player.board, game.activePlayer);
+    let healText = "";
+    if (healTarget && healTarget.damage > 0) {
+      healTarget.damage = Math.max(0, healTarget.damage - 3);
+      healText = ` ${healTarget.name} recovered up to 3 Fortitude.`;
+    }
+
+    if (player.deck.length === 0) {
+      player.hand.push(card);
+      setAction("Cannot resolve Wellspring Rite: deck is empty.", true);
+      return false;
+    }
+
+    drawCard(player);
+    const discard = player.hand
+      .slice()
+      .sort((a, b) => (b.skull || 0) - (a.skull || 0))
+      .find((c) => c.id !== card.id);
+    if (discard) {
+      removeCardById(player.hand, discard.id);
+      player.graveyard.push(discard);
+      setAction(`${card.name} resolved.${healText} Discarded ${discard.name}.`);
+    } else {
+      setAction(`${card.name} resolved.${healText}`);
+    }
+  } else if (card.effect === "graveDenyEnv") {
+    const heroCards = opponent.graveyard.filter((c) => c.type === "hero");
+    const toBanish = heroCards.slice(0, 2);
+    for (const hero of toBanish) {
+      const removed = removeCardById(opponent.graveyard, hero.id);
+      if (removed) {
+        opponent.banished.push(removed);
+      }
+    }
+
+    const nextEnvIndex = player.deck.findIndex((c) => c.type === "environment");
+    let envText = "";
+    if (nextEnvIndex >= 0) {
+      const [newEnvironment] = player.deck.splice(nextEnvIndex, 1);
+      game.environment = newEnvironment;
+      envText = ` Environment shifted to ${newEnvironment.name}.`;
+    } else {
+      game.environment = null;
+      envText = " Environment was cleared.";
+    }
+
+    setAction(
+      `${card.name} banished ${toBanish.length} enemy hero${toBanish.length === 1 ? "" : "es"} from the graveyard.${envText}`
+    );
   }
 
   player.graveyard.push(card);
@@ -764,6 +870,7 @@ function renderPlayer(index) {
   const vitality = document.getElementById(`player${index}Vitality`);
   const deck = document.getElementById(`player${index}Deck`);
   const grave = document.getElementById(`player${index}Graveyard`);
+  const banished = document.getElementById(`player${index}Banished`);
   const board = document.getElementById(`player${index}Board`);
   const hand = document.getElementById(`player${index}Hand`);
 
@@ -775,6 +882,7 @@ function renderPlayer(index) {
   vitality.textContent = player.vitality;
   deck.textContent = player.deck.length;
   grave.textContent = player.graveyard.filter((c) => c.type === "hero").length;
+  banished.textContent = player.banished.length;
 
   panel.classList.toggle("inactive", !isCurrent);
 

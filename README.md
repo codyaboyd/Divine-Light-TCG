@@ -11,11 +11,13 @@ A lightweight JavaScript digital trading card battle game with local hotseat and
 - **Sacrifice system**:
   - 1-2 skull heroes can be played freely.
   - 3-5 skull heroes require sacrificing heroes whose skull total meets or exceeds the card's skull cost.
-- **Mystic cards** with effects:
-  - Stat boost
+- **Mystic cards** with expanded effects:
+  - Stat boost and shielding
   - Free 3-4 skull summon (no sacrifice)
-  - Shield against one attack
   - Revival from graveyard
+  - Enemy debuff and targeted removal
+  - Fortitude healing with draw/discard filtering
+  - Graveyard denial and environment refresh
 - **Environment cards**:
   - Exactly one global environment at a time.
   - Playing a new one replaces the old one, regardless of owner.
@@ -60,10 +62,14 @@ A lightweight JavaScript digital trading card battle game with local hotseat and
 
 #### Mystics
 Mystics are cast from hand, then go to graveyard after resolving:
-- **Runic Surge (boost):** Gives an allied hero +2 Attack and +2 Fortitude.
+- **Runic Surge (boost):** Gives your weakest allied hero +2 Attack and +2 Fortitude.
 - **Forbidden Gate (free summon):** Lets you summon one 3-4 skull hero this turn without sacrifice.
-- **Aegis Veil (shield):** Gives one allied hero a one-time shield against the next incoming attack.
+- **Aegis Veil (shield):** Gives your most damaged allied hero a one-time shield against the next incoming attack.
 - **Soul Recall (revive):** Revives one hero from your graveyard to your battlefield (if space is available).
+- **Null Hex (debuff):** Enemy hero with highest Attack gets -2 Attack and becomes exhausted.
+- **Sever Thread (removal):** Destroys the weakest enemy hero.
+- **Wellspring Rite (heal/filter):** Heal 3 damage from your most damaged allied hero, then draw 1 and discard 1.
+- **Rift Collapse (grave deny/environment):** Banish up to two enemy heroes from graveyard, then replace the environment from your deck (or clear it).
 
 #### Environments
 - Only **one** environment exists globally.
