@@ -202,6 +202,10 @@ function createPlayer(name) {
     board: [],
     graveyard: [],
     freeSummonReady: false,
+    radiantWardUsed: false,
+    umbralSacrificeUsed: false,
+    tideReviveUsed: false,
+    lunarAttackUsed: false,
   };
 }
 
@@ -210,13 +214,57 @@ function setAction(message, isWarn = false) {
   ids.actionMessage.className = isWarn ? "warn" : "";
 }
 
-function calculateStats(hero) {
+function calculateStats(hero, ownerIndex = null) {
   const envAttack = game.environment && game.environment.faction === hero.faction ? game.environment.buffAttack : 0;
   const envFort = game.environment && game.environment.faction === hero.faction ? game.environment.buffFortitude : 0;
+  const flameAttack =
+    hero.faction === "Flame" &&
+    !hero.shielded &&
+    ownerIndex !== null &&
+    ownerIndex === game.activePlayer
+      ? 1
+      : 0;
   return {
-    attack: hero.attack + hero.attackMod + envAttack,
+    attack: hero.attack + hero.attackMod + envAttack + flameAttack,
     maxFortitude: hero.fortitude + hero.fortMod + envFort,
   };
+}
+
+function resetFactionTurnFlags(player) {
+  player.radiantWardUsed = false;
+  player.umbralSacrificeUsed = false;
+  player.tideReviveUsed = false;
+  player.lunarAttackUsed = false;
+}
+
+function applyRadiantWardOnSummon(player, hero) {
+  if (hero.faction === "Radiant" && !player.radiantWardUsed) {
+    hero.shielded = true;
+    player.radiantWardUsed = true;
+    return true;
+  }
+  return false;
+}
+
+function applyUmbralSacrificeBonus(player) {
+  if (player.umbralSacrificeUsed) return null;
+  const candidates = player.board.filter((hero) => hero.faction === "Umbral");
+  if (candidates.length === 0) return null;
+  candidates.sort((a, b) => a.skull - b.skull);
+  const target = candidates[0];
+  target.attackMod += 1;
+  target.fortMod += 1;
+  player.umbralSacrificeUsed = true;
+  return target;
+}
+
+function triggerLunarReposition(attackerOwner, attacker) {
+  if (attacker.faction !== "Lunar" || attackerOwner.lunarAttackUsed) return null;
+  const target = attackerOwner.board.find((hero) => hero.skull <= 2 && hero.exhausted);
+  if (!target) return null;
+  target.exhausted = false;
+  attackerOwner.lunarAttackUsed = true;
+  return target;
 }
 
 function drawCard(player) {
@@ -320,10 +368,11 @@ function playHero(player, cardId) {
   const movedHero = removeCardById(player.hand, cardId);
   movedHero.exhausted = true;
   player.board.push(movedHero);
+  const gotWard = applyRadiantWardOnSummon(player, movedHero);
   if (player.freeSummonReady && movedHero.skull > 2) {
     player.freeSummonReady = false;
   }
-  setAction(`${player.name} summoned ${movedHero.name}.`);
+  setAction(`${player.name} summoned ${movedHero.name}.${gotWard ? " Ward granted." : ""}`);
   render();
   return true;
 }
@@ -352,6 +401,7 @@ function confirmSacrifice(player) {
   for (const hero of sacrificed) {
     moveHeroToGraveyard(player, hero);
   }
+  const umbralBuffTarget = applyUmbralSacrificeBonus(player);
 
   const heroToPlay = removeCardById(player.hand, game.pendingSacrifice.heroCardId);
   if (!heroToPlay) {
@@ -363,8 +413,13 @@ function confirmSacrifice(player) {
 
   heroToPlay.exhausted = true;
   player.board.push(heroToPlay);
+  const gotWard = applyRadiantWardOnSummon(player, heroToPlay);
   game.pendingSacrifice = null;
-  setAction(`${player.name} sacrificed ${skullTotal} skulls and summoned ${heroToPlay.name}.`);
+  setAction(
+    `${player.name} sacrificed ${skullTotal} skulls and summoned ${heroToPlay.name}.` +
+      `${umbralBuffTarget ? ` ${umbralBuffTarget.name} gained +1/+1 from Umbral rite.` : ""}` +
+      `${gotWard ? " Ward granted." : ""}`
+  );
   render();
   return true;
 }
@@ -419,10 +474,14 @@ function playMystic(player, cardId) {
     }
     const revived = player.graveyard.shift();
     revived.damage = 0;
-    revived.exhausted = true;
+    const tideReady = revived.faction === "Tide" && !player.tideReviveUsed;
+    revived.exhausted = !tideReady;
     revived.shielded = false;
     player.board.push(revived);
-    setAction(`${player.name} revived ${revived.name}.`);
+    if (tideReady) {
+      player.tideReviveUsed = true;
+    }
+    setAction(`${player.name} revived ${revived.name}.${tideReady ? " It entered ready (Tide identity)." : ""}`);
   }
 
   player.graveyard.push(card);
@@ -447,14 +506,18 @@ function attackHero(attackerOwner, defenderOwner, attackerId, targetId) {
   if (target.shielded) {
     target.shielded = false;
     attacker.exhausted = true;
-    setAction(`${target.name}'s shield blocked ${attacker.name}'s attack.`);
+    const lunarTarget = triggerLunarReposition(attackerOwner, attacker);
+    setAction(
+      `${target.name}'s shield blocked ${attacker.name}'s attack.` +
+        `${lunarTarget ? ` ${lunarTarget.name} was readied by Lunar tempo.` : ""}`
+    );
     return;
   }
 
-  const atk = calculateStats(attacker).attack;
-  const retaliation = calculateStats(target).attack;
-  const targetStats = calculateStats(target);
-  const attackerStats = calculateStats(attacker);
+  const atk = calculateStats(attacker, game.activePlayer).attack;
+  const retaliation = calculateStats(target, 1 - game.activePlayer).attack;
+  const targetStats = calculateStats(target, 1 - game.activePlayer);
+  const attackerStats = calculateStats(attacker, game.activePlayer);
   const attackerFortBefore = attackerStats.maxFortitude - attacker.damage;
   const targetFortBefore = targetStats.maxFortitude - target.damage;
   const currentFort = targetStats.maxFortitude - target.damage;
@@ -463,6 +526,7 @@ function attackHero(attackerOwner, defenderOwner, attackerId, targetId) {
   target.damage += atk;
   attacker.damage += retaliation;
   attacker.exhausted = true;
+  const lunarTarget = triggerLunarReposition(attackerOwner, attacker);
   const targetDefeated = target.damage >= targetStats.maxFortitude;
   const attackerDefeated = attacker.damage >= attackerStats.maxFortitude;
 
@@ -485,7 +549,8 @@ function attackHero(attackerOwner, defenderOwner, attackerId, targetId) {
     `${attacker.name} dealt ${targetDamageTaken} to ${target.name}, and ${target.name} retaliated for ${attackerDamageTaken}.` +
       `${targetDefeated ? ` ${target.name} was defeated.` : ""}` +
       `${attackerDefeated ? ` ${attacker.name} was defeated.` : ""}` +
-      `${overflow > 0 ? ` ${overflow} overflow damage hit ${defenderOwner.name}'s vitality.` : ""}`
+      `${overflow > 0 ? ` ${overflow} overflow damage hit ${defenderOwner.name}'s vitality.` : ""}` +
+      `${lunarTarget ? ` ${lunarTarget.name} was readied by Lunar tempo.` : ""}`
   );
 
   checkWin();
@@ -500,10 +565,14 @@ function attackPlayer(attackerOwner, defenderOwner, attackerId) {
     render();
     return;
   }
-  const atk = calculateStats(attacker).attack;
+  const atk = calculateStats(attacker, game.activePlayer).attack;
   defenderOwner.vitality -= atk;
   attacker.exhausted = true;
-  setAction(`${attacker.name} attacked directly for ${atk} vitality damage.`);
+  const lunarTarget = triggerLunarReposition(attackerOwner, attacker);
+  setAction(
+    `${attacker.name} attacked directly for ${atk} vitality damage.` +
+      `${lunarTarget ? ` ${lunarTarget.name} was readied by Lunar tempo.` : ""}`
+  );
   checkWin();
   render();
 }
@@ -540,6 +609,7 @@ function endTurn() {
 
   const current = getCurrentPlayer();
   current.freeSummonReady = false;
+  resetFactionTurnFlags(current);
   resetExhaustion(current);
   drawCard(current);
 
@@ -655,7 +725,7 @@ function renderHandCard(card, owner, isCurrent) {
 }
 
 function renderBoardHero(hero, ownerIndex, isCurrent, enemyTargetable) {
-  const stats = calculateStats(hero);
+  const stats = calculateStats(hero, ownerIndex);
   const currentFortitude = Math.max(0, stats.maxFortitude - hero.damage);
   const selectedForAttack = game.selectedAttackerId === hero.id;
   const selectedForSacrifice = game.pendingSacrifice && game.pendingSacrifice.chosen.has(hero.id);

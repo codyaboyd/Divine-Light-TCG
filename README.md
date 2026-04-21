@@ -20,6 +20,7 @@ A lightweight JavaScript digital trading card battle game with local hotseat and
   - Exactly one global environment at a time.
   - Playing a new one replaces the old one, regardless of owner.
   - Environment boosts a specific faction's heroes.
+- **Faction identity package**: every faction now has a gameplay keyword and combat style that informs deckbuilding.
 - **Vitality and overflow damage**:
   - Players start with vitality.
   - Overkill damage to a hero spills over to player vitality.
@@ -68,6 +69,17 @@ Mystics are cast from hand, then go to graveyard after resolving:
 - Only **one** environment exists globally.
 - Playing a new environment replaces the current one.
 - Environment buffs apply to matching faction heroes: **+1 Attack / +1 Fortitude**.
+
+#### Faction identities
+Each faction has a baseline style and keyword hook so deck themes are mechanically distinct:
+
+- **Flame — Aggression / Burn:** Flame heroes gain **+1 Attack during your turn** while they are unshielded. This faction is tuned for pressure and fast lethality.
+- **Radiant — Shield / Control:** The first time each turn you play a Radiant hero, give it **Ward** (blocks the next incoming attack this turn). Radiant decks stall and win through favorable trades.
+- **Umbral — Sacrifice Value:** Once per turn, when one of your heroes is sacrificed, your lowest-skull Umbral hero gets **+1/+1 permanently**. Umbral decks convert board resources into scaling threats.
+- **Tide — Revival Loop:** The first Tide hero you revive each turn enters **ready** instead of exhausted. Tide decks grind with recursion and repeated value.
+- **Lunar — Tempo / Reposition:** The first time each turn a Lunar hero attacks, it may **ready one allied hero with 2 or less skulls**. Lunar decks emphasize sequencing and multi-action turns.
+
+These faction hooks are additive with Environment buffs and are intended to define archetypes (aggro, control, sacrifice-midrange, recursion, tempo-combo).
 
 ### 5) Summoning and Sacrifice Rules
 - **Play cap each turn:**
@@ -135,7 +147,13 @@ At **end turn**:
   - Revived hero has no damage.
   - Revived hero is not shielded.
 
-### 11) Online PvP Rules (WebRTC)
+### 11) Faction Identity Rules Clarifications
+- Faction identity effects are always active unless a card specifically overrides them.
+- "First time each turn" resets at the start of the active player's turn.
+- If multiple effects trigger simultaneously, the active player orders their own triggers first, then the defending player orders theirs.
+- A hero can only have one shield instance at a time (from Ward/Aegis Veil); additional shield grants refresh, not stack.
+
+### 12) Online PvP Rules (WebRTC)
 - Host is authoritative for game state.
 - Guest sends intents (play card, attack, etc.) to host.
 - Host validates actions and broadcasts the updated state.
