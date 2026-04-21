@@ -366,6 +366,52 @@ function chooseAiHeroCard(player, difficulty) {
   return ranked[0];
 }
 
+function scoreAiHeroCard(hero, player, opponent, difficulty, playerIndex) {
+  const boardPressure = opponent.board.reduce((sum, enemy) => sum + calculateStats(enemy, 1 - playerIndex).attack, 0);
+  const selfPressure = player.board.reduce((sum, ally) => sum + calculateStats(ally, playerIndex).attack, 0);
+  const factionOnBoard = player.board.filter((ally) => ally.faction === hero.faction).length;
+  const hasGuard = hasKeyword(hero, "Guard") ? 2.2 : 0;
+  const hasFlying = hasKeyword(hero, "Flying") ? 1.4 : 0;
+  const hasPiercing = hasKeyword(hero, "Piercing") ? 1.2 : 0;
+  const hasVanguard = hasKeyword(hero, "Vanguard") ? 1.1 : 0;
+  const needsSacrifice = hero.skull > 2 && !(player.freeSummonReady && hero.skull <= 4);
+  const sacrificeRisk = needsSacrifice ? Math.max(0, hero.skull - 2) * 0.9 : 0;
+  const tempo = hero.attack * 1.4 + hero.fortitude + hasGuard + hasFlying + hasPiercing + hasVanguard;
+  const catchUpBias = boardPressure > selfPressure ? 1.8 : 0;
+
+  let score = tempo + factionOnBoard * 0.7 + catchUpBias - sacrificeRisk;
+  if (difficulty === "hard") {
+    if (player.board.length <= 1 && needsSacrifice) {
+      score -= 3;
+    }
+    if (player.vitality <= 10 && hasKeyword(hero, "Guard")) {
+      score += 2;
+    }
+  }
+  return score;
+}
+
+function chooseBestAiHeroCard(player, opponent, difficulty, playerIndex) {
+  const heroes = player.hand.filter((card) => card.type === "hero");
+  const playable = heroes.filter((hero) => {
+    const rules = canPlayHero(player, hero);
+    if (!rules.ok) return false;
+    if (!rules.needsSacrifice) return true;
+    const boardSkulls = player.board.reduce((sum, unit) => sum + unit.skull, 0);
+    return boardSkulls >= hero.skull;
+  });
+  if (!playable.length) return null;
+  if (difficulty === "easy") return chooseAiHeroCard(player, difficulty);
+
+  return playable
+    .slice()
+    .sort(
+      (a, b) =>
+        scoreAiHeroCard(b, player, opponent, difficulty, playerIndex) -
+        scoreAiHeroCard(a, player, opponent, difficulty, playerIndex)
+    )[0];
+}
+
 function chooseAiNonHeroCard(player, opponent, difficulty) {
   const candidates = player.hand.filter((card) => card.type !== "hero");
   const usable = candidates.filter((card) => card.type === "environment" || canAiUseMystic(card, player, opponent));
@@ -436,6 +482,44 @@ function chooseAiTarget(attacker, defenderOwner) {
   return { type: "enemy", cardId: scored[0].hero.id };
 }
 
+function aiTryPlayHero(current, opponent, difficulty) {
+  if (game.heroPlayUsed || game.gameOver) return false;
+  const aiIndex = game.activePlayer;
+  const heroCard = chooseBestAiHeroCard(current, opponent, difficulty, aiIndex);
+  if (!heroCard) return false;
+
+  const beforeHand = current.hand.length;
+  processIntent({ type: "play-card", cardId: heroCard.id });
+  if (game.pendingSacrifice) {
+    const sacrificeIds = chooseAiSacrificeIds(current.board, game.pendingSacrifice.cost, difficulty);
+    if (!sacrificeIds.length) {
+      game.pendingSacrifice = null;
+      return false;
+    }
+    game.pendingSacrifice.chosen = new Set(sacrificeIds);
+    processIntent({ type: "confirm-sacrifice" });
+  }
+  return game.heroPlayUsed || current.hand.length < beforeHand;
+}
+
+function aiTryPlayNonHero(current, opponent, difficulty) {
+  if (game.nonHeroPlayUsed || game.gameOver) return false;
+  const nonHeroCard = chooseAiNonHeroCard(current, opponent, difficulty);
+  if (!nonHeroCard) return false;
+  const beforeHand = current.hand.length;
+  processIntent({ type: "play-card", cardId: nonHeroCard.id });
+  return game.nonHeroPlayUsed || current.hand.length < beforeHand;
+}
+
+function shouldAiPlayNonHeroFirst(current, opponent, difficulty) {
+  if (difficulty === "easy") return Math.random() < 0.45;
+  const hasFreeSummon = current.hand.some((card) => card.type === "mystic" && card.effect === "freeSummon");
+  const expensiveHero = current.hand.some((card) => card.type === "hero" && card.skull >= 3 && card.skull <= 4);
+  if (hasFreeSummon && expensiveHero) return true;
+  if (current.board.length === 0 && opponent.board.length > 0) return true;
+  return false;
+}
+
 function maybeScheduleAiTurn() {
   if (!game.ai.enabled || game.gameOver || isOnlineMode() || !isAiPlayer(game.activePlayer) || game.ai.thinking) return;
   game.ai.thinking = true;
@@ -453,20 +537,13 @@ function runAiTurn() {
   const current = getCurrentPlayer();
   const opponent = getOpponent();
   const difficulty = game.ai.difficulty || "easy";
-
-  const heroCard = chooseAiHeroCard(current, difficulty);
-  if (heroCard && !game.heroPlayUsed) {
-    processIntent({ type: "play-card", cardId: heroCard.id });
-    if (game.pendingSacrifice) {
-      const sacrificeIds = chooseAiSacrificeIds(current.board, game.pendingSacrifice.cost, difficulty);
-      game.pendingSacrifice.chosen = new Set(sacrificeIds);
-      processIntent({ type: "confirm-sacrifice" });
-    }
-  }
-
-  const nonHeroCard = chooseAiNonHeroCard(current, opponent, difficulty);
-  if (nonHeroCard && !game.nonHeroPlayUsed) {
-    processIntent({ type: "play-card", cardId: nonHeroCard.id });
+  const nonHeroFirst = shouldAiPlayNonHeroFirst(current, opponent, difficulty);
+  if (nonHeroFirst) {
+    aiTryPlayNonHero(current, opponent, difficulty);
+    aiTryPlayHero(current, opponent, difficulty);
+  } else {
+    aiTryPlayHero(current, opponent, difficulty);
+    aiTryPlayNonHero(current, opponent, difficulty);
   }
 
   const attackers = current.board.filter((hero) => !hero.exhausted).map((hero) => hero.id);
