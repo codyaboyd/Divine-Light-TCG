@@ -291,6 +291,23 @@ function hasKeyword(hero, keyword) {
   return Boolean(hero) && Array.isArray(hero.keywords) && hero.keywords.includes(keyword);
 }
 
+
+function applyStateBasedDefeats() {
+  const notes = [];
+  for (let ownerIndex = 0; ownerIndex < game.players.length; ownerIndex += 1) {
+    const owner = game.players[ownerIndex];
+    const opponent = game.players[1 - ownerIndex];
+    const defeated = owner.board.filter((hero) => hero.damage >= calculateStats(hero, ownerIndex).maxFortitude);
+    for (const hero of defeated) {
+      removeCardById(owner.board, hero.id);
+      moveHeroToGraveyard(owner, hero);
+      notes.push(`${hero.name} was defeated because its damage met or exceeded its current Fortitude.`);
+      notes.push(...resolveDeathKeywords(hero, owner, opponent));
+    }
+  }
+  return notes;
+}
+
 function drawCard(player) {
   if (player.deck.length === 0) {
     setAction(`${player.name} cannot draw (deck empty).`, true);
@@ -662,8 +679,11 @@ function playMystic(player, cardId) {
       envText = " Environment was cleared.";
     }
 
+    const collapseDefeatNotes = applyStateBasedDefeats();
+
     setAction(
-      `${card.name} banished ${toBanish.length} enemy hero${toBanish.length === 1 ? "" : "es"} from the graveyard.${envText}`
+      `${card.name} banished ${toBanish.length} enemy hero${toBanish.length === 1 ? "" : "es"} from the graveyard.${envText}` +
+        `${collapseDefeatNotes.length ? ` ${collapseDefeatNotes.join(" ")}` : ""}`
     );
   }
 
@@ -676,7 +696,12 @@ function playEnvironment(player, cardId) {
   const card = removeCardById(player.hand, cardId);
   if (!card) return false;
   game.environment = card;
-  setAction(`${player.name} changed the environment to ${card.name}. ${card.faction} heroes gain +${card.buffAttack}/+${card.buffFortitude}.`);
+  const envDefeatNotes = applyStateBasedDefeats();
+  setAction(
+    `${player.name} changed the environment to ${card.name}. ${card.faction} heroes gain +${card.buffAttack}/+${card.buffFortitude}.` +
+      `${envDefeatNotes.length ? ` ${envDefeatNotes.join(" ")}` : ""}`
+  );
+  checkWin();
   render();
   return true;
 }
