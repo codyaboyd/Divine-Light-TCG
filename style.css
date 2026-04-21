@@ -34,6 +34,67 @@ body {
   overflow-x: hidden;
 }
 
+.cinematicFx {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 30;
+  opacity: 0;
+}
+
+.fxWave,
+.fxSpark {
+  position: absolute;
+  inset: 0;
+}
+
+.fxWave {
+  background: radial-gradient(circle at 50% 50%, rgba(94, 234, 212, 0.2), transparent 60%);
+  transform: scale(0.8);
+  opacity: 0;
+}
+
+.fxSpark {
+  width: 18vmax;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent);
+  opacity: 0;
+}
+
+.fxSparkA {
+  top: 22%;
+  left: 8%;
+}
+
+.fxSparkB {
+  top: 50%;
+  right: 10%;
+}
+
+.fxSparkC {
+  bottom: 20%;
+  left: 24%;
+}
+
+.turnBanner {
+  width: min(var(--content-max), 96vw);
+  margin: 0 auto var(--space-2);
+  min-height: 2.25rem;
+  display: grid;
+  place-items: center;
+  color: #e5f7ff;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: opacity 300ms ease, transform 300ms ease;
+}
+
+.turnBanner.active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 header,
 main {
   width: min(var(--content-max), 96vw);
@@ -260,6 +321,44 @@ p {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+  position: relative;
+  overflow: hidden;
+  transition: transform 240ms ease, border-color 240ms ease, box-shadow 240ms ease;
+}
+
+.card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent 15%, rgba(255, 255, 255, 0.2), transparent 85%);
+  transform: translateX(-130%);
+  pointer-events: none;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  border-color: #72efd3;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.32);
+}
+
+.card.entering {
+  animation: cardEnter 450ms cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+.card.summoned {
+  animation: summonBurst 520ms ease-out;
+}
+
+.card.tookDamage {
+  animation: damageShake 300ms linear;
+}
+
+.card.healed {
+  animation: healPulse 420ms ease;
+}
+
+.card.swing {
+  animation: swingFlash 380ms ease;
 }
 
 button,
@@ -354,6 +453,45 @@ textarea {
   color: var(--danger);
 }
 
+body.fx-attack .cinematicFx,
+body.fx-summon .cinematicFx,
+body.fx-turn .cinematicFx,
+body.fx-mystic .cinematicFx,
+body.fx-win .cinematicFx,
+body.fx-warn .cinematicFx {
+  opacity: 1;
+}
+
+body.fx-attack .fxWave {
+  animation: fxAttack 500ms ease-out;
+}
+
+body.fx-summon .fxWave {
+  animation: fxSummon 500ms ease-out;
+}
+
+body.fx-turn .fxWave {
+  animation: fxTurn 600ms ease-out;
+}
+
+body.fx-mystic .fxWave {
+  animation: fxMystic 550ms ease-out;
+}
+
+body.fx-win .fxWave {
+  animation: fxWin 800ms ease-out;
+}
+
+body.fx-warn .fxWave {
+  animation: fxWarn 350ms ease-out;
+}
+
+body.fx-attack .fxSpark,
+body.fx-summon .fxSpark,
+body.fx-win .fxSpark {
+  animation: sparkRun 420ms ease-out;
+}
+
 @keyframes drift {
   0% {
     transform: translateY(0) translateX(0) scale(1);
@@ -391,6 +529,145 @@ textarea {
   }
   100% {
     transform: scale(1);
+  }
+}
+
+@keyframes cardEnter {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes summonBurst {
+  0% {
+    box-shadow: 0 0 0 rgba(110, 235, 214, 0);
+  }
+  45% {
+    box-shadow: 0 0 26px rgba(110, 235, 214, 0.8);
+  }
+  100% {
+    box-shadow: 0 0 0 rgba(110, 235, 214, 0);
+  }
+}
+
+@keyframes damageShake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  30% {
+    transform: translateX(4px);
+  }
+  65% {
+    transform: translateX(-4px);
+  }
+}
+
+@keyframes healPulse {
+  0% {
+    box-shadow: 0 0 0 rgba(134, 239, 172, 0);
+  }
+  50% {
+    box-shadow: 0 0 28px rgba(134, 239, 172, 0.6);
+  }
+  100% {
+    box-shadow: 0 0 0 rgba(134, 239, 172, 0);
+  }
+}
+
+@keyframes swingFlash {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.03);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes sparkRun {
+  0% {
+    opacity: 0;
+    transform: translateX(-80px);
+  }
+  45% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(120px);
+  }
+}
+
+@keyframes fxAttack {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 0.8;
+    transform: scale(1.18);
+  }
+}
+
+@keyframes fxSummon {
+  0% {
+    opacity: 0;
+    filter: hue-rotate(0deg);
+  }
+  100% {
+    opacity: 0.8;
+    filter: hue-rotate(30deg);
+  }
+}
+
+@keyframes fxTurn {
+  0% {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  100% {
+    opacity: 0.55;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes fxMystic {
+  0% {
+    opacity: 0;
+    filter: hue-rotate(0deg);
+  }
+  100% {
+    opacity: 0.75;
+    filter: hue-rotate(110deg);
+  }
+}
+
+@keyframes fxWin {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1.3);
+  }
+}
+
+@keyframes fxWarn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0.7;
+    filter: hue-rotate(-40deg);
   }
 }
 
