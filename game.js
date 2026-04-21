@@ -1020,7 +1020,11 @@ function renderHandCard(card, owner, isCurrent) {
       ? `<button data-action="confirm-sacrifice" data-owner="${owner}">Confirm Sacrifice</button>`
       : "";
 
-  return `<div class="card ${card.type}${entering}"><strong>${card.name}</strong><span class="faint">${card.type.toUpperCase()}</span><span>${extra}</span>${btn}${pendingBtn}</div>`;
+  const art = card.asset
+    ? `<img class="cardArt" src="${card.asset}" alt="${card.name} art" loading="lazy" onerror="this.style.display='none'" />`
+    : "";
+
+  return `<div class="card ${card.type}${entering}">${art}<strong>${card.name}</strong><span class="faint">#${card.number || "?"} · ${card.type.toUpperCase()}</span><span>${extra}</span>${btn}${pendingBtn}</div>`;
 }
 
 function renderBoardHero(hero, ownerIndex, isCurrent, enemyTargetable) {
@@ -1042,8 +1046,9 @@ function renderBoardHero(hero, ownerIndex, isCurrent, enemyTargetable) {
 
   const parts = [
     `<div class="${classes.join(" ")}">`,
+    `${hero.asset ? `<img class="cardArt" src="${hero.asset}" alt="${hero.name} art" loading="lazy" onerror="this.style.display='none'" />` : ""}`,
     `<strong>${hero.name}</strong>`,
-    `<span>Skulls: ${hero.skull} | ${hero.faction}</span>`,
+    `<span>#${hero.number || "?"} · Skulls: ${hero.skull} | ${hero.faction}</span>`,
     `<span>ATK ${stats.attack} / FORT ${currentFortitude}/${stats.maxFortitude}</span>`,
     `<span>${hero.exhausted ? "Exhausted" : "Ready"}${hero.shielded ? " | Shielded" : ""}</span>`,
     `${hero.keywords && hero.keywords.length ? `<span>Keywords: ${hero.keywords.join(", ")}</span>` : ""}`,
