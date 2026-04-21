@@ -176,7 +176,15 @@ At **end turn**:
 - If multiple effects trigger simultaneously, the active player orders their own triggers first, then the defending player orders theirs.
 - A hero can only have one shield instance at a time (from Ward/Aegis Veil); additional shield grants refresh, not stack.
 
-### 12) Online PvP Rules (WebRTC)
+
+### 12) Timing and Edge-Case Clarifications
+- **Fortitude threshold updates immediately:** if a hero's max Fortitude changes (buff gained or lost), defeat checks use the new max Fortitude right away.
+- **Environment replacement can cause immediate defeats:** if replacing/clearing the environment removes Fortitude and a hero's current damage is now >= its new max Fortitude, that hero is defeated immediately and sent to graveyard.
+- **Hand limit behavior:** the 10-card hand limit is a hard cap. Draws that would exceed 10 are denied immediately (no overdraw, no immediate discard, and no end-turn cleanup discard step).
+- **Revive is not summon-play:** revived heroes enter via revive resolution, not normal summon. They do not trigger "on summon/play" style effects unless an effect explicitly says it triggers on revive.
+- **Simultaneous lethal + overflow resolution:** in hero combat, hero damage and retaliation are assigned simultaneously, overflow is computed from the attacker's excess over the defender's current Fortitude, then all resulting vitality changes are applied before win check. If both players are at 0 or less after the full resolution, the duel is a draw.
+
+### 13) Online PvP Rules (WebRTC)
 - Host is authoritative for game state.
 - Guest sends intents (play card, attack, etc.) to host.
 - Host validates actions and broadcasts the updated state.
