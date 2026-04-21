@@ -5,6 +5,9 @@ A lightweight JavaScript digital trading card battle game with local hotseat and
 ## Features
 
 - **Hero cards** with 1-5 skull ratings, attack, and fortitude.
+- **Play tempo layer**:
+  - You may play up to **one Hero card per turn**.
+  - You may also play up to **one non-Hero card per turn** (Mystic or Environment).
 - **Sacrifice system**:
   - 1-2 skull heroes can be played freely.
   - 3-5 skull heroes require sacrificing heroes whose skull total meets or exceeds the card's skull cost.
@@ -67,6 +70,9 @@ Mystics are cast from hand, then go to graveyard after resolving:
 - Environment buffs apply to matching faction heroes: **+1 Attack / +1 Fortitude**.
 
 ### 5) Summoning and Sacrifice Rules
+- **Play cap each turn:**
+  - Up to **1 Hero play**.
+  - Up to **1 non-Hero play** (Mystic or Environment).
 - **1-2 skull heroes:** free summon (no sacrifice needed).
 - **3-5 skull heroes:** require sacrifice unless bypassed by a free-summon effect.
 - To sacrifice:
@@ -79,7 +85,11 @@ Mystics are cast from hand, then go to graveyard after resolving:
 - Free summon status expires if unused by end of turn.
 
 ### 6) Turn Structure
-On your turn you can play cards, attack, draw manually once, then end turn.
+On your turn you can:
+- Play up to **one Hero** and up to **one non-Hero** card.
+- Attack with ready heroes.
+- Draw manually once.
+- End turn.
 
 At **end turn**:
 1. Active player switches.

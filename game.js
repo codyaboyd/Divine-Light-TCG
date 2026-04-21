@@ -3,6 +3,8 @@ const game = {
   turn: 0,
   activePlayer: 0,
   manualDrawUsed: false,
+  heroPlayUsed: false,
+  nonHeroPlayUsed: false,
   selectedAttackerId: null,
   pendingSacrifice: null,
   environment: null,
@@ -90,6 +92,8 @@ function serializeGame() {
     turn: game.turn,
     activePlayer: game.activePlayer,
     manualDrawUsed: game.manualDrawUsed,
+    heroPlayUsed: game.heroPlayUsed,
+    nonHeroPlayUsed: game.nonHeroPlayUsed,
     selectedAttackerId: game.selectedAttackerId,
     pendingSacrifice: game.pendingSacrifice
       ? {
@@ -108,6 +112,8 @@ function applySnapshot(snapshot) {
   game.turn = snapshot.turn;
   game.activePlayer = snapshot.activePlayer;
   game.manualDrawUsed = Boolean(snapshot.manualDrawUsed);
+  game.heroPlayUsed = Boolean(snapshot.heroPlayUsed);
+  game.nonHeroPlayUsed = Boolean(snapshot.nonHeroPlayUsed);
   game.selectedAttackerId = snapshot.selectedAttackerId;
   game.pendingSacrifice = snapshot.pendingSacrifice
     ? {
@@ -232,6 +238,8 @@ function startGame() {
   game.turn = 1;
   game.activePlayer = 0;
   game.manualDrawUsed = false;
+  game.heroPlayUsed = false;
+  game.nonHeroPlayUsed = false;
   game.selectedAttackerId = null;
   game.pendingSacrifice = null;
   game.environment = null;
@@ -244,7 +252,7 @@ function startGame() {
   }
 
   resetExhaustion(game.players[0]);
-  setAction("New duel started. 1-2 skull heroes are free, 3-5 skull heroes require sacrifices unless bypassed by Mystic cards (3-4 skull only). Direct attacks require a clear enemy board. Hero combat includes retaliation, and Draw can be used once each turn.");
+  setAction("New duel started. You may play up to 1 hero and 1 non-hero card (Mystic or Environment) each turn. 1-2 skull heroes are free, 3-5 skull heroes require sacrifices unless bypassed by Mystic cards (3-4 skull only). Direct attacks require a clear enemy board. Hero combat includes retaliation, and Draw can be used once each turn.");
   render();
 }
 
@@ -306,7 +314,7 @@ function playHero(player, cardId) {
     };
     setAction(`Select allied heroes to sacrifice for ${hero.name}. Need ${hero.skull} total skulls, then click Confirm Sacrifice on the hero card.`);
     render();
-    return;
+    return false;
   }
 
   const movedHero = removeCardById(player.hand, cardId);
@@ -317,10 +325,11 @@ function playHero(player, cardId) {
   }
   setAction(`${player.name} summoned ${movedHero.name}.`);
   render();
+  return true;
 }
 
 function confirmSacrifice(player) {
-  if (!game.pendingSacrifice) return;
+  if (!game.pendingSacrifice) return false;
   const sacrificed = [];
   let skullTotal = 0;
 
@@ -337,7 +346,7 @@ function confirmSacrifice(player) {
       player.board.push(hero);
     }
     setAction(`Not enough sacrifice skulls (${skullTotal}/${game.pendingSacrifice.cost}).`, true);
-    return;
+    return false;
   }
 
   for (const hero of sacrificed) {
@@ -349,7 +358,7 @@ function confirmSacrifice(player) {
     setAction("Summon failed: hero card no longer in hand.", true);
     game.pendingSacrifice = null;
     render();
-    return;
+    return false;
   }
 
   heroToPlay.exhausted = true;
@@ -357,6 +366,7 @@ function confirmSacrifice(player) {
   game.pendingSacrifice = null;
   setAction(`${player.name} sacrificed ${skullTotal} skulls and summoned ${heroToPlay.name}.`);
   render();
+  return true;
 }
 
 function toggleSacrificeSelection(cardId) {
@@ -378,7 +388,7 @@ function playMystic(player, cardId) {
     if (player.board.length === 0) {
       player.hand.push(card);
       setAction("Need an allied hero on board to boost.", true);
-      return;
+      return false;
     }
     const target = player.board[0];
     target.attackMod += 2;
@@ -391,7 +401,7 @@ function playMystic(player, cardId) {
     if (player.board.length === 0) {
       player.hand.push(card);
       setAction("Need an allied hero on board to shield.", true);
-      return;
+      return false;
     }
     const target = player.board[0];
     target.shielded = true;
@@ -400,12 +410,12 @@ function playMystic(player, cardId) {
     if (player.graveyard.length === 0) {
       player.hand.push(card);
       setAction("No heroes in graveyard to revive.", true);
-      return;
+      return false;
     }
     if (player.board.length >= 5) {
       player.hand.push(card);
       setAction("Cannot revive: battlefield full (max 5 heroes).", true);
-      return;
+      return false;
     }
     const revived = player.graveyard.shift();
     revived.damage = 0;
@@ -417,14 +427,16 @@ function playMystic(player, cardId) {
 
   player.graveyard.push(card);
   render();
+  return true;
 }
 
 function playEnvironment(player, cardId) {
   const card = removeCardById(player.hand, cardId);
-  if (!card) return;
+  if (!card) return false;
   game.environment = card;
   setAction(`${player.name} changed the environment to ${card.name}. ${card.faction} heroes gain +${card.buffAttack}/+${card.buffFortitude}.`);
   render();
+  return true;
 }
 
 function attackHero(attackerOwner, defenderOwner, attackerId, targetId) {
@@ -523,6 +535,8 @@ function endTurn() {
   game.activePlayer = 1 - game.activePlayer;
   game.turn += 1;
   game.manualDrawUsed = false;
+  game.heroPlayUsed = false;
+  game.nonHeroPlayUsed = false;
 
   const current = getCurrentPlayer();
   current.freeSummonReady = false;
@@ -548,11 +562,26 @@ function processIntent(intent, fromRemote = false) {
   if (intent.type === "play-card") {
     const card = current.hand.find((c) => c.id === intent.cardId);
     if (!card) return;
-    if (card.type === "hero") playHero(current, intent.cardId);
-    else if (card.type === "mystic") playMystic(current, intent.cardId);
-    else playEnvironment(current, intent.cardId);
+    if (card.type === "hero") {
+      if (game.heroPlayUsed) {
+        setAction("You may only play one hero each turn.", true);
+        render();
+        return;
+      }
+      const played = playHero(current, intent.cardId);
+      if (played) game.heroPlayUsed = true;
+    } else {
+      if (game.nonHeroPlayUsed) {
+        setAction("You may only play one non-hero card (Mystic or Environment) each turn.", true);
+        render();
+        return;
+      }
+      const played = card.type === "mystic" ? playMystic(current, intent.cardId) : playEnvironment(current, intent.cardId);
+      if (played) game.nonHeroPlayUsed = true;
+    }
   } else if (intent.type === "confirm-sacrifice") {
-    confirmSacrifice(current);
+    const played = confirmSacrifice(current);
+    if (played) game.heroPlayUsed = true;
   } else if (intent.type === "toggle-sacrifice") {
     toggleSacrificeSelection(intent.cardId);
   } else if (intent.type === "select-attacker") {
