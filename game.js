@@ -2,7 +2,6 @@ const game = {
   players: [],
   turn: 0,
   activePlayer: 0,
-  manualDrawUsed: false,
   heroPlayUsed: false,
   nonHeroPlayUsed: false,
   selectedAttackerId: null,
@@ -23,7 +22,6 @@ const ids = {
   currentPlayerName: document.getElementById("currentPlayerName"),
   environmentName: document.getElementById("environmentName"),
   actionMessage: document.getElementById("actionMessage"),
-  drawBtn: document.getElementById("drawBtn"),
   endTurnBtn: document.getElementById("endTurnBtn"),
   resetBtn: document.getElementById("resetBtn"),
   netMode: document.getElementById("netMode"),
@@ -91,7 +89,6 @@ function serializeGame() {
     players: game.players,
     turn: game.turn,
     activePlayer: game.activePlayer,
-    manualDrawUsed: game.manualDrawUsed,
     heroPlayUsed: game.heroPlayUsed,
     nonHeroPlayUsed: game.nonHeroPlayUsed,
     selectedAttackerId: game.selectedAttackerId,
@@ -111,7 +108,6 @@ function applySnapshot(snapshot) {
   game.players = snapshot.players;
   game.turn = snapshot.turn;
   game.activePlayer = snapshot.activePlayer;
-  game.manualDrawUsed = Boolean(snapshot.manualDrawUsed);
   game.heroPlayUsed = Boolean(snapshot.heroPlayUsed);
   game.nonHeroPlayUsed = Boolean(snapshot.nonHeroPlayUsed);
   game.selectedAttackerId = snapshot.selectedAttackerId;
@@ -290,7 +286,6 @@ function startGame() {
   game.players = [createPlayer("Player 1"), createPlayer("Player 2")];
   game.turn = 1;
   game.activePlayer = 0;
-  game.manualDrawUsed = false;
   game.heroPlayUsed = false;
   game.nonHeroPlayUsed = false;
   game.selectedAttackerId = null;
@@ -305,7 +300,7 @@ function startGame() {
   }
 
   resetExhaustion(game.players[0]);
-  setAction("New duel started. You may play up to 1 hero and 1 non-hero card (Mystic or Environment) each turn. 1-2 skull heroes are free, 3-5 skull heroes require sacrifices unless bypassed by Mystic cards (3-4 skull only). Direct attacks usually require a clear enemy board unless the attacker has Piercing. Hero combat includes retaliation + overflow, and Draw can be used once each turn.");
+  setAction("New duel started. You may play up to 1 hero and 1 non-hero card (Mystic or Environment) each turn. 1-2 skull heroes are free, 3-5 skull heroes require sacrifices unless bypassed by Mystic cards (3-4 skull only). Direct attacks usually require a clear enemy board unless the attacker has Piercing. Hero combat includes retaliation + overflow, and you draw automatically at the beginning of each turn.");
   render();
 }
 
@@ -755,7 +750,6 @@ function endTurn() {
   game.pendingSacrifice = null;
   game.activePlayer = 1 - game.activePlayer;
   game.turn += 1;
-  game.manualDrawUsed = false;
   game.heroPlayUsed = false;
   game.nonHeroPlayUsed = false;
 
@@ -816,15 +810,6 @@ function processIntent(intent, fromRemote = false) {
   } else if (intent.type === "target-player") {
     attackPlayer(current, opponent, game.selectedAttackerId);
     game.selectedAttackerId = null;
-  } else if (intent.type === "draw") {
-    if (game.manualDrawUsed) {
-      setAction("You may only use Draw once per turn.", true);
-      render();
-      return;
-    }
-    game.manualDrawUsed = true;
-    drawCard(current);
-    render();
   } else if (intent.type === "end-turn") {
     endTurn();
   } else if (intent.type === "reset") {
@@ -959,7 +944,6 @@ function render() {
   renderPlayer(0);
   renderPlayer(1);
 
-  ids.drawBtn.disabled = !canLocalTakeTurnActions() || game.gameOver;
   ids.endTurnBtn.disabled = !canLocalTakeTurnActions() || game.gameOver;
 }
 
@@ -983,10 +967,6 @@ document.body.addEventListener("click", (event) => {
   } else if (action === "target-player") {
     submitIntent({ type: "target-player" });
   }
-});
-
-ids.drawBtn.addEventListener("click", () => {
-  submitIntent({ type: "draw" });
 });
 
 ids.endTurnBtn.addEventListener("click", () => submitIntent({ type: "end-turn" }));
