@@ -187,16 +187,26 @@ function ensurePeer() {
 
 function createDeck() {
   const deck = [];
-  for (let i = 0; i < 16; i += 1) {
-    const hero = clone(HERO_LIBRARY[i % HERO_LIBRARY.length]);
+  const heroCount = 16;
+  const mysticCount = 8;
+  const environmentCount = 5;
+  if (HERO_LIBRARY.length < heroCount || MYSTIC_LIBRARY.length < mysticCount || ENV_LIBRARY.length < environmentCount) {
+    throw new Error("Card libraries are smaller than deck composition requirements.");
+  }
+  const heroPool = shuffle(clone(HERO_LIBRARY)).slice(0, heroCount);
+  const mysticPool = shuffle(clone(MYSTIC_LIBRARY)).slice(0, mysticCount);
+  const environmentPool = shuffle(clone(ENV_LIBRARY)).slice(0, environmentCount);
+
+  for (let i = 0; i < heroPool.length; i += 1) {
+    const hero = clone(heroPool[i]);
     deck.push({ id: uid(), type: "hero", ...hero, damage: 0, attackMod: 0, fortMod: 0, shielded: false, exhausted: false });
   }
-  for (let i = 0; i < 8; i += 1) {
-    const mystic = clone(MYSTIC_LIBRARY[i % MYSTIC_LIBRARY.length]);
+  for (let i = 0; i < mysticPool.length; i += 1) {
+    const mystic = clone(mysticPool[i]);
     deck.push({ id: uid(), type: "mystic", ...mystic });
   }
-  for (let i = 0; i < 5; i += 1) {
-    const env = clone(ENV_LIBRARY[i % ENV_LIBRARY.length]);
+  for (let i = 0; i < environmentPool.length; i += 1) {
+    const env = clone(environmentPool[i]);
     deck.push({ id: uid(), type: "environment", ...env });
   }
   return shuffle(deck);
