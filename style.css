@@ -323,6 +323,25 @@ body.gameStarted .startMenu {
   color: #d2def5;
 }
 
+.menuField {
+  display: grid;
+  gap: 0.4rem;
+  margin: 1rem auto 0;
+  text-align: left;
+  max-width: 420px;
+  color: #d8e4fb;
+  font-weight: 600;
+}
+
+.menuField select {
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 12px;
+  background: rgba(30, 36, 56, 0.82);
+  color: var(--ink);
+  min-height: 2.8rem;
+  padding: 0.45rem 0.7rem;
+}
+
 .menuActions {
   margin-top: 1.3rem;
   display: grid;

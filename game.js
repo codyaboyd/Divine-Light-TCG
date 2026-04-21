@@ -8,6 +8,12 @@ const game = {
   pendingSacrifice: null,
   environment: null,
   gameOver: false,
+  ai: {
+    enabled: false,
+    playerIndex: null,
+    difficulty: null,
+    thinking: false,
+  },
 };
 
 const net = {
@@ -22,6 +28,7 @@ const ids = {
   turnBanner: document.getElementById("turnBanner"),
   launchGameBtn: document.getElementById("launchGameBtn"),
   menuPulseBtn: document.getElementById("menuPulseBtn"),
+  gameModeSelect: document.getElementById("gameModeSelect"),
   currentPlayerName: document.getElementById("currentPlayerName"),
   environmentName: document.getElementById("environmentName"),
   actionMessage: document.getElementById("actionMessage"),
@@ -65,12 +72,18 @@ function isOnlineMode() {
   return net.mode === "host" || net.mode === "guest";
 }
 
+function isAiPlayer(playerIndex) {
+  return game.ai.enabled && game.ai.playerIndex === playerIndex;
+}
+
 function canLocalControlPlayer(playerIndex) {
+  if (isAiPlayer(playerIndex)) return false;
   if (!isOnlineMode()) return true;
   return net.localPlayerIndex === playerIndex;
 }
 
 function canLocalTakeTurnActions() {
+  if (!isOnlineMode() && isAiPlayer(game.activePlayer)) return false;
   if (!isOnlineMode()) return true;
   return net.connected && net.localPlayerIndex === game.activePlayer;
 }
@@ -395,8 +408,220 @@ function drawCard(player) {
   setAction(`${player.name} drew ${drawn.name}.`);
 }
 
+function configureMatchMode() {
+  const mode = ids.gameModeSelect ? ids.gameModeSelect.value : "local";
+  if (mode.startsWith("ai-")) {
+    const difficulty = mode.replace("ai-", "");
+    game.ai.enabled = true;
+    game.ai.playerIndex = 1;
+    game.ai.difficulty = difficulty;
+  } else {
+    game.ai.enabled = false;
+    game.ai.playerIndex = null;
+    game.ai.difficulty = null;
+  }
+  game.ai.thinking = false;
+}
+
+function canAiUseMystic(card, player, opponent) {
+  if (card.effect === "boost" || card.effect === "shield") return player.board.length > 0;
+  if (card.effect === "revive") return player.graveyard.length > 0 && player.board.length < 5;
+  if (card.effect === "debuff" || card.effect === "removal") return opponent.board.length > 0;
+  if (card.effect === "forcedDuel") return player.board.length > 0 && opponent.board.length > 0;
+  if (card.effect === "healFilter") return player.deck.length > 0;
+  if (card.effect === "graveDenyEnv") return true;
+  return true;
+}
+
+function chooseAiSacrificeIds(board, cost, difficulty) {
+  if (!board.length) return [];
+  if (difficulty === "easy") {
+    const shuffled = shuffle(board.slice());
+    const selected = [];
+    let total = 0;
+    for (const hero of shuffled) {
+      selected.push(hero.id);
+      total += hero.skull;
+      if (total >= cost) break;
+    }
+    return total >= cost ? selected : [];
+  }
+
+  const combos = [];
+  const limit = 1 << board.length;
+  for (let mask = 1; mask < limit; mask += 1) {
+    let skulls = 0;
+    const ids = [];
+    for (let i = 0; i < board.length; i += 1) {
+      if (mask & (1 << i)) {
+        skulls += board[i].skull;
+        ids.push(board[i].id);
+      }
+    }
+    if (skulls >= cost) {
+      combos.push({ ids, skulls, overpay: skulls - cost, count: ids.length });
+    }
+  }
+  if (!combos.length) return [];
+
+  combos.sort((a, b) => {
+    if (difficulty === "hard") {
+      return a.overpay - b.overpay || a.count - b.count || a.skulls - b.skulls;
+    }
+    return a.count - b.count || a.skulls - b.skulls;
+  });
+  return combos[0].ids;
+}
+
+function chooseAiHeroCard(player, difficulty) {
+  const heroes = player.hand.filter((card) => card.type === "hero");
+  const playable = heroes.filter((hero) => {
+    const rules = canPlayHero(player, hero);
+    if (!rules.ok) return false;
+    if (!rules.needsSacrifice) return true;
+    const boardSkulls = player.board.reduce((sum, unit) => sum + unit.skull, 0);
+    return boardSkulls >= hero.skull;
+  });
+  if (!playable.length) return null;
+
+  if (difficulty === "easy") {
+    return playable[Math.floor(Math.random() * playable.length)];
+  }
+  if (difficulty === "hard") {
+    return playable.slice().sort((a, b) => b.skull - a.skull || b.attack - a.attack)[0];
+  }
+  return playable.slice().sort((a, b) => b.skull - a.skull)[0];
+}
+
+function chooseAiNonHeroCard(player, opponent, difficulty) {
+  const candidates = player.hand.filter((card) => card.type !== "hero");
+  const usable = candidates.filter((card) => card.type === "environment" || canAiUseMystic(card, player, opponent));
+  if (!usable.length) return null;
+
+  if (difficulty === "easy") {
+    return usable[Math.floor(Math.random() * usable.length)];
+  }
+
+  const scoreCard = (card) => {
+    if (card.type === "environment") return difficulty === "hard" ? 3 : 1;
+    const scores = {
+      directDamage: 10,
+      removal: 9,
+      forcedDuel: 8,
+      revive: 7,
+      debuff: 6,
+      boost: 5,
+      shield: 4,
+      healFilter: 3,
+      freeSummon: 2,
+      graveDenyEnv: 2,
+    };
+    return scores[card.effect] || 1;
+  };
+
+  return usable.slice().sort((a, b) => scoreCard(b) - scoreCard(a))[0];
+}
+
+function chooseAiTarget(attacker, defenderOwner) {
+  const aiIndex = game.activePlayer;
+  const difficulty = game.ai.difficulty || "easy";
+  const enemyBoard = defenderOwner.board.slice();
+  const guardOnly = hasGuardHero(enemyBoard) && !hasKeyword(attacker, "Flying");
+  const legalTargets = guardOnly ? enemyBoard.filter((hero) => hasKeyword(hero, "Guard")) : enemyBoard;
+  const canDirect =
+    (!hasGuardHero(enemyBoard) || hasKeyword(attacker, "Flying")) &&
+    (enemyBoard.length === 0 || hasKeyword(attacker, "Piercing"));
+
+  if (difficulty === "easy") {
+    if (canDirect && Math.random() < 0.4) return { type: "player" };
+    if (!legalTargets.length) return canDirect ? { type: "player" } : null;
+    return { type: "enemy", cardId: legalTargets[Math.floor(Math.random() * legalTargets.length)].id };
+  }
+
+  if (difficulty === "hard" && canDirect) {
+    const directAtk = calculateStats(attacker, aiIndex).attack;
+    const directDamage = enemyBoard.length > 0 ? Math.max(1, Math.floor(directAtk / 2)) : directAtk;
+    if (defenderOwner.vitality <= directDamage) {
+      return { type: "player" };
+    }
+  }
+
+  if (!legalTargets.length) return canDirect ? { type: "player" } : null;
+  const scored = legalTargets
+    .map((hero) => {
+      const heroStats = calculateStats(hero, 1 - aiIndex);
+      const incoming = calculateStats(attacker, aiIndex).attack;
+      const remaining = heroStats.maxFortitude - hero.damage;
+      const killBonus = incoming >= remaining ? 100 : 0;
+      const threat = heroStats.attack;
+      return { hero, score: killBonus + threat };
+    })
+    .sort((a, b) => b.score - a.score);
+
+  if (difficulty === "medium" && canDirect && defenderOwner.board.length === 0) {
+    return { type: "player" };
+  }
+  return { type: "enemy", cardId: scored[0].hero.id };
+}
+
+function maybeScheduleAiTurn() {
+  if (!game.ai.enabled || game.gameOver || isOnlineMode() || !isAiPlayer(game.activePlayer) || game.ai.thinking) return;
+  game.ai.thinking = true;
+  setAction(`${getCurrentPlayer().name} is plotting a move...`);
+  render();
+  window.setTimeout(runAiTurn, 550);
+}
+
+function runAiTurn() {
+  if (!game.ai.enabled || game.gameOver || !isAiPlayer(game.activePlayer)) {
+    game.ai.thinking = false;
+    return;
+  }
+
+  const current = getCurrentPlayer();
+  const opponent = getOpponent();
+  const difficulty = game.ai.difficulty || "easy";
+
+  const heroCard = chooseAiHeroCard(current, difficulty);
+  if (heroCard && !game.heroPlayUsed) {
+    processIntent({ type: "play-card", cardId: heroCard.id });
+    if (game.pendingSacrifice) {
+      const sacrificeIds = chooseAiSacrificeIds(current.board, game.pendingSacrifice.cost, difficulty);
+      game.pendingSacrifice.chosen = new Set(sacrificeIds);
+      processIntent({ type: "confirm-sacrifice" });
+    }
+  }
+
+  const nonHeroCard = chooseAiNonHeroCard(current, opponent, difficulty);
+  if (nonHeroCard && !game.nonHeroPlayUsed) {
+    processIntent({ type: "play-card", cardId: nonHeroCard.id });
+  }
+
+  const attackers = current.board.filter((hero) => !hero.exhausted).map((hero) => hero.id);
+  for (const attackerId of attackers) {
+    if (game.gameOver) break;
+    const attacker = current.board.find((hero) => hero.id === attackerId);
+    if (!attacker || attacker.exhausted) continue;
+    const choice = chooseAiTarget(attacker, opponent);
+    if (!choice) continue;
+    processIntent({ type: "select-attacker", cardId: attacker.id });
+    if (choice.type === "enemy") {
+      processIntent({ type: "target-enemy", cardId: choice.cardId });
+    } else {
+      processIntent({ type: "target-player" });
+    }
+  }
+
+  game.ai.thinking = false;
+  if (!game.gameOver && isAiPlayer(game.activePlayer)) {
+    processIntent({ type: "end-turn" });
+  }
+}
+
 function startGame() {
-  game.players = [createPlayer("Player 1"), createPlayer("Player 2")];
+  configureMatchMode();
+  const playerTwoName = game.ai.enabled ? `PC (${game.ai.difficulty[0].toUpperCase()}${game.ai.difficulty.slice(1)})` : "Player 2";
+  game.players = [createPlayer("Player 1"), createPlayer(playerTwoName)];
   game.turn = 1;
   game.activePlayer = 0;
   game.heroPlayUsed = false;
@@ -416,6 +641,7 @@ function startGame() {
   setAction("New mythic clash started. You may play up to 1 deity and 1 non-deity card (Relic or Realm) each turn. 1-2 skull deities are free, 3-5 skull deities require offerings unless bypassed by Relic cards (3-4 skull only). Direct strikes usually require a clear enemy board unless the attacker has Piercing. Combat includes retaliation + overflow, and you draw automatically at the beginning of each turn.");
   setTurnBanner("Player 1 Turn");
   render();
+  maybeScheduleAiTurn();
 }
 
 function launchGameFromMenu() {
@@ -932,6 +1158,7 @@ function endTurn() {
   setAction(`${current.name}'s turn. Deities refreshed and one card drawn.`);
   setTurnBanner(`${current.name} Turn`);
   render();
+  maybeScheduleAiTurn();
 }
 
 function processIntent(intent, fromRemote = false) {
@@ -1095,7 +1322,7 @@ function renderPlayer(index) {
 
   const isCurrent = index === game.activePlayer;
   const enemyTargetable = !isCurrent && game.selectedAttackerId !== null;
-  const canViewHand = !isOnlineMode() || canLocalControlPlayer(index);
+  const canViewHand = (!isOnlineMode() || canLocalControlPlayer(index)) && !isAiPlayer(index);
 
   title.textContent = `${player.name}${isCurrent ? " (Active)" : ""}`;
   vitality.textContent = player.vitality;
